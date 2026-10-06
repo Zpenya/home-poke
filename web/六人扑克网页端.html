@@ -71,7 +71,7 @@
   }
   .gseat{
     background:rgba(0,0,0,.30);border:2px solid var(--line);border-radius:13px;padding:7px 8px 6px;
-    display:flex;flex-direction:column;align-items:center;gap:3px;min-height:98px;position:relative;transition:border-color .2s,box-shadow .2s;
+    display:flex;flex-direction:column;align-items:center;gap:3px;min-height:116px;position:relative;transition:border-color .2s,box-shadow .2s;
   }
   .gseat.me{border-color:rgba(34,197,94,.7)}
   .gseat.cur{border-color:var(--gold);box-shadow:0 0 16px rgba(251,191,36,.45)}
@@ -83,11 +83,12 @@
   .gseat.cur .arrow{display:block}
   .gseat .backline{display:flex;min-height:26px;align-items:center;justify-content:center;gap:1px}
   .gseat .backline .pcard.back{width:18px;height:25px;border-radius:3px;box-shadow:none}
-  .gseat .last{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;min-height:32px;align-items:center;flex-direction:column}
-  .gseat .last .cards{display:flex;gap:1px;flex-wrap:wrap;justify-content:center}
-  .gseat .last .pcard{width:19px;height:27px;border-radius:3px;box-shadow:none}
-  .gseat .last .pcard .crank{font-size:8px}
-  .gseat .last .pcard .csuit{font-size:6px}
+  .gseat .last{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;min-height:44px;align-items:center;flex-direction:column}
+  .gseat .last .cards{display:flex;gap:2px;flex-wrap:wrap;justify-content:center}
+  .gseat .last .pcard{width:30px;height:42px;border-radius:4px;box-shadow:none}
+  .gseat .last .pcard .corner{left:4px;top:3px}
+  .gseat .last .pcard .crank{font-size:14px}
+  .gseat .last .pcard .csuit{font-size:8px}
   .gseat .oldtag{font-size:9px;color:#9fc0ad;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:3px;padding:0 4px;line-height:1.5}
   .gseat .ph{color:var(--dim);font-size:10px}
   /* 座位坐标 */
@@ -110,6 +111,7 @@
   .handbar{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);padding:0 4px 2px}
   .actions{display:flex;gap:10px;margin-top:4px;justify-content:center}
   .actions button{flex:0 0 130px;padding:12px 0;font-size:16px}
+  .actions button.hot{filter:brightness(1.12);box-shadow:0 0 0 3px var(--gold),0 3px 0 #047857;transform:scale(1.04)}
 
   /* 记牌器 + 日志 */
   .lower{display:grid;grid-template-columns:230px 1fr;gap:12px;margin-top:12px}
@@ -141,15 +143,26 @@
   /* 顶部栏 */
   .topbar{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub);margin:2px 2px 8px}
 
+  /* 平板（横屏/竖屏，661–1024） */
+  @media (min-width:661px) and (max-width:1024px){
+    .pcard{width:50px;height:72px}
+    #tableZone .pcard{width:46px;height:66px}
+    .fan .pcard{margin-left:-22px}
+    .gseat .last .pcard{width:27px;height:38px}
+    .gseat .last .pcard .crank{font-size:13px}
+  }
   @media (max-width:660px){
     .wrap{padding:6px}
     .lower{grid-template-columns:1fr}
     .table{gap:5px;padding:6px 2px}
-    .pcard{width:46px;height:66px}
+    .pcard{width:44px;height:64px}
     .fan{padding:30px 2px 6px;min-height:104px}
-    .fan .pcard{margin-left:-20px}
-    #tableZone .pcard{width:42px;height:62px}
-    .gseat{min-height:86px;padding:5px}
+    .fan .pcard{margin-left:-18px}
+    #tableZone .pcard{width:40px;height:58px}
+    .gseat{min-height:98px;padding:5px}
+    .gseat .last .pcard{width:22px;height:32px;border-radius:3px}
+    .gseat .last .pcard .crank{font-size:11px}
+    .gseat .last .pcard .csuit{font-size:7px}
     .actions button{flex:0 0 96px;padding:11px 0}
   }
 </style>
@@ -260,7 +273,8 @@ function cardEl(c,mini){
 }
 function miniCardHTML(c){
   const r=RL(c.rank), s=c.suit===4?"":SS(c.suit), cls=c.suit===4?'pcard joker':'pcard'+(RD(c)?" red":"");
-  return `<div class="${cls}"><span class="pip">${c.suit===4?r:s}</span></div>`;
+  // 显示数字+花色，方便看清别人出的牌
+  return `<div class="${cls}"><span class="corner"><span class="crank">${r}</span><span class="csuit">${s}</span></span></div>`;
 }
 function appendLog(t,cls){
   const l=$("log"),line=document.createElement("div");
@@ -354,13 +368,15 @@ function showView(v){
   $("gameView").style.display=v==="game"?"block":"none";
 }
 
-/* 集中同步：根据当前回合刷新按钮与提示（防状态不同步导致卡死） */
+/* 集中同步：根据当前回合刷新按钮与提示（防状态不同步导致卡死）
+   只要轮到我就一定可出牌，不依赖游戏状态判断，避免按钮误锁灰 */
 function syncUI(){
-  const inGame=gameState==="playing";
-  const myTurn=inGame&&currentTurn===mySeat;
+  const myTurn=currentTurn===mySeat;
   $("btnPlay").disabled=!myTurn;
   $("btnPass").disabled=!(myTurn&&!free);
   $("btnHint").disabled=!myTurn;
+  // 自由出牌回合：出牌按钮加金色强调
+  $("btnPlay").classList.toggle("hot",myTurn&&free);
   renderSeats();
 }
 /* 允许随时预选手牌（不再因回合限制点不了牌），出牌时才真正校验 */
