@@ -1,0 +1,14 @@
+{
+  "name": "six-player-poker-server",
+  "version": "1.0.0",
+  "description": "六人两副牌争上游（争上游+进贡）WebSocket 服务器",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>六人争上游扑克</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0e3d2b; --panel:#14532d; --inner:#0a3a22; --line:#1f5c3c;
+    --txt:#fff; --sub:#9fd3b0; --gold:#fbbf24; --green:#22c55e; --blue:#3b82f6; --red:#dc2626;
+  }
+  body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;padding:10px}
+  .wrap{max-width:960px;margin:0 auto}
+  .panel{background:var(--panel);border-radius:12px;padding:14px;margin-bottom:12px}
+  h2{text-align:center;margin-bottom:12px;letter-spacing:2px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  input{flex:1;min-width:120px;padding:10px 12px;font-size:16px;border:none;border-radius:8px;background:var(--inner);color:var(--txt);outline:none}
+  input::placeholder{color:var(--sub)}
+  input:focus{border:1px solid var(--green)}
+  button{padding:10px 14px;font-size:15px;border:none;border-radius:8px;cursor:pointer;font-weight:600}
+  .btn-g{background:var(--green);color:#fff}
+  .btn-b{background:var(--blue);color:#fff}
+  .btn-ghost{background:#2c5e3f;color:#fff}
+  button:disabled{background:#4a5568;color:#a0aec0;cursor:not-allowed}
+  .hint{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.6}
+
+  /* ===== 牌 ===== */
+  .card{background:linear-gradient(180deg,#fff,#f1f5f9);border-radius:6px;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.4);border:1px solid #cbd5e1;flex-shrink:0;user-select:none}
+  .card .r{line-height:1}
+  .card .s{line-height:1;margin-top:1px}
+  .card.red{color:var(--red)}
+  .mini{width:22px;height:30px;border-radius:3px;font-size:9px}
+  .mini .s{font-size:8px}
+  .big{width:48px;height:68px;font-size:18px}
+  .big .s{font-size:15px}
+
+  /* ===== 牌桌环形布局 ===== */
+  .board{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:8px;margin-bottom:12px}
+  .seat{background:var(--inner);border:2px solid var(--line);border-radius:10px;padding:8px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between;position:relative;transition:border-color .2s}
+  .seat.cur{border-color:var(--gold);box-shadow:0 0 0 3px rgba(251,191,36,.35)}
+  .seat.me{border-color:var(--green)}
+  .seat.done{opacity:.55}
+  .seat .hd{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+  .seat .nm{font-weight:700}
+  .seat .cnt{color:var(--sub);font-size:12px}
+  .seat .rk{color:var(--gold);font-weight:700}
+  .seat .last{display:flex;gap:2px;flex-wrap:wrap;min-height:32px;margin-top:4px;align-items:center;justify-content:center;flex-direction:column}
+  .seat .last .ph{color:#5f8f70;font-size:11px}
+  .seat .oldtag{font-size:10px;color:#7aa58c;background:#14532d;border:1px solid #1f5c3c;border-radius:4px;padding:0 5px;line-height:1.5;margin-bottom:2px}
+  .seat .arrow{position:absolute;top:-16px;left:50%;transform:translateX(-50%);color:var(--gold);font-size:16px;display:none}
+  .seat.cur .arrow{display:block}
+
+  /* 中央区 */
+  .center{grid-column:2;grid-row:2;background:var(--inner);border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:150px}
+  .center #status{font-weight:700;font-size:15px;color:var(--gold);text-align:center;min-height:22px}
+  .center #cd{font-size:13px;color:var(--sub);min-height:18px}
+  #tableArea{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;min-height:72px;align-items:center}
+  #tableArea .empty{color:#5f8f70;font-size:13px}
+
+  /* 座位坐标 */
+  .seat.r1c1{grid-column:1;grid-row:1}.seat.r1c2{grid-column:2;grid-row:1}.seat.r1c3{grid-column:3;grid-row:1}
+  .seat.r2c1{grid-column:1;grid-row:2}.seat.r2c3{grid-column:3;grid-row:2}
+  .seat.r3c2{grid-column:2;grid-row:3}
+
+  /* ===== 手牌区 ===== */
+  .handpanel{background:var(--panel);border-radius:12px;padding:12px}
+  .handbar{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);margin-bottom:4px}
+  #handArea{display:flex;gap:2px;overflow-x:auto;padding:12px 2px 6px;min-height:96px;align-items:flex-end}
+  #handArea .card{cursor:pointer;margin-left:-16px;transition:transform .15s}
+  #handArea .card:first-child{margin-left:0}
+  #handArea .card.sel{transform:translateY(-16px);box-shadow:0 0 0 3px var(--gold);border-color:var(--gold);z-index:5}
+  .actions{display:flex;gap:8px;margin-top:8px}
+  .actions button{flex:1}
+
+  /* ===== 记牌器 + 日志 ===== */
+  .lower{display:grid;grid-template-columns:220px 1fr;gap:12px;margin-top:12px}
+  .side{background:var(--panel);border-radius:12px;padding:12px}
+  .side h4{font-size:14px;margin-bottom:8px;color:var(--sub);cursor:pointer}
+  .recorder{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+  .rec .r{background:var(--inner);border-radius:6px;text-align:center;padding:4px 2px;font-size:12px}
+  .rec .r b{display:block;color:var(--gold);font-size:14px}
+  #log{background:#0a1f16;border-radius:10px;padding:10px;font-size:12px;color:#b6d9c2;height:180px;overflow-y:auto;line-height:1.8}
+  #log .me{color:#fff}
+  #log .sep{color:var(--gold);font-weight:700;margin:4px 0}
+  #log .act{color:#8fd3a0}
+
+  /* ===== 弹窗 ===== */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .modal.show{display:flex}
+  .box{background:var(--panel);border-radius:14px;padding:18px;width:100%;max-width:440px;max-height:86vh;overflow-y:auto}
+  .box h3{margin-bottom:12px;text-align:center}
+  .pick{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0}
+  .box .tip{font-size:12px;color:var(--sub);text-align:center;margin-bottom:8px}
+  .ranklist{text-align:center;line-height:2;font-size:15px}
+  .ranklist b{color:var(--gold)}
+  .btn-line{display:flex;gap:8px;margin-top:14px}
+  .btn-line button{flex:1}
+
+  @media (max-width:640px){
+    .lower{grid-template-columns:1fr}
+    .board{grid-template-columns:1fr 1fr 1fr}
+    .mini{width:18px;height:26px}
+    .big{width:40px;height:58px}
+    #handArea .card{margin-left:-12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 连接 / 房间 ===== -->
+  <div id="connView" class="panel">
+    <h2>六人争上游（两副牌）</h2>
+    <div class="row"><input id="ipInput" placeholder="服务器地址，如 127.0.0.1:8080 或 1.2.3.4:8080"></div>
+    <div class="row" style="margin-top:8px"><input id="nameInput" placeholder="你的昵称"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn-g" style="flex:1" onclick="doCreate()">创建房间</button>
+      <button class="btn-b" style="flex:1" onclick="doJoin()">加入房间</button>
+    </div>
+    <div class="row" style="margin-top:8px"><input id="codeInput" placeholder="输入 6 位房号"></div>
+    <div class="hint">创建者填服务器地址和昵称点“创建房间”；其余人填同样地址、昵称和房号点“加入房间”。人满后房主开局，空位自动补机器人。桌面端支持快捷键：回车=出牌，空格=不要，H=提示，R=记牌器。</div>
+  </div>
+
+  <div id="roomView" class="panel" style="display:none">
+    <h2>房间 <span id="roomCode"></span></h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px" id="roomSeats"></div>
+    <button class="btn-g" id="startBtn" style="width:100%;margin-top:12px;display:none" onclick="startGame()">开始游戏</button>
+    <div class="hint" id="waitTip" style="text-align:center">等待房主开始游戏…</div>
+  </div>
+
+  <!-- ===== 牌桌 ===== -->
+  <div id="gameView" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub);margin-bottom:6px">
+      <span>第 <span id="roundNo">1</span> 局 · 座位 <span id="mySeatTxt"></span></span>
+      <span><button class="btn-ghost" style="padding:4px 10px;font-size:12px" onclick="toggleRec()">记牌器</button></span>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <div class="handpanel">
+      <div class="handbar"><span>我的手牌（<span id="handCount">0</span> 张）</span><span id="selCount">已选 0 张</span></div>
+      <div id="handArea"></div>
+      <div class="actions">
+        <button class="btn-b" id="btnPlay" onclick="doPlay()">出牌 [回车]</button>
+        <button class="btn-ghost" id="btnPass" onclick="doPass()">不要 [空格]</button>
+        <button class="btn-ghost" id="btnHint" onclick="doHint()">提示 [H]</button>
+      </div>
+    </div>
+
+    <div class="lower">
+      <div class="side">
+        <h4 onclick="toggleRec()">记牌器（剩余张数）▾</h4>
+        <div class="recorder" id="recorder"></div>
+      </div>
+      <div class="side">
+        <h4>出牌记录</h4>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 进贡 / 回贡 / 结算 弹窗 -->
+<div class="modal" id="modal">
+  <div class="box">
+    <h3 id="modalTitle"></h3>
+    <div class="tip" id="modalTip"></div>
+    <div class="pick" id="modalPick"></div>
+    <div class="ranklist" id="modalRank" style="display:none"></div>
+    <div class="btn-line">
+      <button class="btn-g" id="modalOk" onclick="modalOk()">确认</button>
+      <button class="btn-ghost" id="modalCancel" onclick="modalCancel()" style="display:none">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= 状态 ================= */
+let ws=null, connected=false, mySeat=-1, hostSeat=-1, roomCode="", token=localStorage.getItem("poker_token")||"";
+let hand=[], selected=new Set(), currentTurn=-1, free=false, tableCards=[], tableSeat=-1;
+let gameState="idle", roundNo=0, hintIdx=0, autoMode=false, cdTimer=null, cdLeft=0, cdTotal=20;
+let trickSeq=0; // 当前回合序号：回合切换时自增，用于区分“本回合”与“上回合”的牌
+let players=Array.from({length:6},(_,i)=>({seat:i,name:"",isBot:false,online:false,cardCount:0,rank:0,last:[],trickSeq:0}));
+let modalMode="", pendingCards=[];
+// 记牌器：两副牌每点数 8 张，小王2 大王2
+const RANK_TOTAL={3:8,4:8,5:8,6:8,7:8,8:8,9:8,10:8,11:8,12:8,13:8,14:8,15:8,16:2,17:2};
+const playedCount={}; Object.keys(RANK_TOTAL).forEach(r=>playedCount[r]=0);
+
+/* ================= 工具 ================= */
+const $=id=>document.getElementById(id);
+const RL=r=>r<=10?String(r):({11:"J",12:"Q",13:"K",14:"A",15:"2",16:"小王",17:"大王"}[r]);
+const SS=s=>["♠","♥","♣","♦"][s]||"";
+const RD=c=>c.suit===1||c.rank===17;
+function seatName(s){return players[s]?(s===mySeat?"我":(players[s].name||"空")):"空";}
+
+function cardEl(c,size,clickable){
+  const d=document.createElement("div");
+  d.className="card "+size+(RD(c)?" red":"");
+  d.dataset.id=c.id;
+  if(c.suit===4){d.innerHTML=`<span class="r">${RL(c.rank)}王</span>`;}
+  else{d.innerHTML=`<span class="r">${RL(c.rank)}</span><span class="s">${SS(c.suit)}</span>`;}
+  if(clickable)d.addEventListener("click",()=>toggleSel(c.id));
+  return d;
+}
+function appendLog(t,cls){
+  const l=$("log");
+  const line=document.createElement("div");
+  line.innerHTML=t; if(cls)line.className=cls;
+  l.appendChild(line); l.scrollTop=l.scrollHeight;
+}
+function setStatus(t){$("status").textContent=t;}
+
+/* ================= 渲染：座位环 ================= */
+function seatGridCell(s){
+  // 以自己为底部中心，顺时针：右、右上、上、左上、左
+  const off=(s-mySeat+6)%6;
+  if(off===0)return "r3c2";
+  if(off===1)return "r2c3";
+  if(off===2)return "r1c3";
+  if(off===3)return "r1c2";
+  if(off===4)return "r1c1";
+  return "r2c1";
+}
+function renderSeats(){
+  const board=$("board"); board.innerHTML="";
+  for(let s=0;s<6;s++){
+    const p=players[s];
+    const d=document.createElement("div");
+    d.className="seat "+seatGridCell(s)+(s===mySeat?" me":"")+(currentTurn===s?" cur":"")+(p.rank>0?" done":"");
+    const nm=s===mySeat?"我":(p.name||"空");
+    const cnt=p.rank>0?`<span class="rk">第${p.rank}名</span>`
+      :(p.name?`<span class="cnt">${p.cardCount} 张</span>`:"<span class='cnt'>空</span>");
+    const arrow=currentTurn===s?"▼":"";
+    // 座位上的牌：若是本回合（trickSeq 一致）正常高亮；若是上一回合遗留，则弱化并标“上轮”
+    const isThisTrick = p.trickSeq===trickSeq && trickSeq>0;
+    let lastTxt="";
+    if(p.last&&p.last.length){
+      const mini=p.last.map(c=>{
+        const m=document.createElement("div");m.className="card mini"+(RD(c)?" red":"");
+        if(c.suit===4)m.innerHTML=`<span class="r">${RL(c.rank)}</span>`;
+        else m.innerHTML=`<span class="r">${RL(c.rank)}</span><span class="s">${SS(c.suit)}</span>`;
+        return m.outerHTML;
+      }).join("");
+      lastTxt= isThisTrick?mini:`<div class="oldtag">上轮</div><div style="opacity:.45">${mini}</div>`;
+    }else if(p.name&&!p.rank){lastTxt="<span class='ph'>—</span>";}
+    d.innerHTML=`<div class="arrow">${arrow}</div>
+      <div class="hd"><span class="nm">${nm}</span>${cnt}</div>
+      <div class="last">${lastTxt||""}</div>`;
+    board.appendChild(d);
+  }
+}
+function renderRoomSeats(){
+  const wrap=$("roomSeats"); wrap.innerHTML="";
+  players.forEach(p=>{
+    const d=document.createElement("div");
+    d.className="seat"+(p.seat===mySeat?" me":"");
+    d.style.minHeight="64px";
+    const nm=p.seat===mySeat?"我":(p.name||"空");
+    const st=p.name?(p.isBot?"机器人":"在线"):"等待加入";
+    d.innerHTML=`<div class="hd"><span class="nm">${nm}</span></div><div class="last"><span class="cnt">${st}</span></div>`;
+    wrap.appendChild(d);
+  });
+  const isHost=mySeat===hostSeat;
+  $("startBtn").style.display=isHost?"block":"none";
+  $("waitTip").style.display=isHost?"none":"block";
+}
+function renderHand(){
+  const wrap=$("handArea"); wrap.innerHTML="";
+  // 从大到小
+  const sorted=[...hand].sort((a,b)=>b.rank-a.rank||b.suit-a.suit||b.deck-a.deck);
+  sorted.forEach(c=>{
+    const el=cardEl(c,"big",true);
+    if(selected.has(c.id))el.classList.add("sel");
+    wrap.appendChild(el);
+  });
+  $("handCount").textContent=hand.length;
+  $("selCount").textContent="已选 "+selected.size+" 张";
+}
+function renderTable(){
+  const wrap=$("tableArea"); wrap.innerHTML="";
+  if(!tableCards.length){wrap.innerHTML="<span class='empty'>暂无出牌</span>";return;}
+  tableCards.forEach(c=>wrap.appendChild(cardEl(c,"big",false)));
+}
+function renderRecorder(){
+  const r=$("recorder"); r.innerHTML="";
+  Object.keys(RANK_TOTAL).forEach(k=>{
+    const left=RANK_TOTAL[k]-playedCount[k];
+    const d=document.createElement("div"); d.className="rec";
+    d.innerHTML=`<b>${left}</b>${RL(+k)}`;
+    if(left===0)d.style.opacity=.35;
+    r.appendChild(d);
+  });
+}
+function updateButtons(){
+  const myTurn=currentTurn===mySeat&&gameState==="playing";
+  $("btnPlay").disabled=!myTurn;
+  $("btnPass").disabled=!(myTurn&&!free);
+  $("btnHint").disabled=!myTurn;
+}
+function showView(v){
+  $("connView").style.display=v==="conn"?"block":"none";
+  $("roomView").style.display=v==="room"?"block":"none";
+  $("gameView").style.display=v==="game"?"block":"none";
+}
+function toggleSel(id){
+  if(currentTurn!==mySeat||gameState!=="playing")return;
+  if(selected.has(id))selected.delete(id);else selected.add(id);
+  const el=document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+  if(el)el.classList.toggle("sel");
+  $("selCount").textContent="已选 "+selected.size+" 张";
+}
+
+/* ===== 倒计时 + 超时自动出牌 ===== */
+function startCd(){
+  stopCd();
+  if(currentTurn!==mySeat||gameState!=="playing")return;
+  cdLeft=cdTotal; $("cd").textContent="倒计时 "+cdLeft+" 秒";
+  cdTimer=setInterval(()=>{
+    cdLeft--;
+    if(cdLeft<=0){$("cd").textContent="";stopCd();autoAct();return;}
+    $("cd").textContent="倒计时 "+cdLeft+" 秒";
+  },1000);
+}
+function stopCd(){if(cdTimer){clearInterval(cdTimer);cdTimer=null;}$("cd").textContent="";}
+function autoAct(){
+  if(currentTurn!==mySeat||gameState!=="playing")return;
+  if(!free){doPass();return;}
+  autoMode=true; send({type:"hint"});
+}
+
+/* ================= 连接 ================= */
+function getServer(){return($("ipInput").value||"127.0.0.1:8080").trim();}
+function connect(){
+  return new Promise((resolve,reject)=>{
+    if(ws){try{ws.close();}catch(e){}}
+    const addr=getServer();
+    const url=/^wss?:\/\//.test(addr)?addr:"ws://"+addr;
+    ws=new WebSocket(url);
+    ws.onopen=()=>{connected=true;resolve();};
+    ws.onerror=()=>reject(new Error("无法连接服务器 "+url));
+    ws.onclose=()=>{connected=false;setStatus("连接已断开");};
+    ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(err){return;}handle(m);};
+  });
+}
+function send(o){if(ws&&connected)ws.send(JSON.stringify(o));}
+
+async function doCreate(){
+  const name=$("nameInput").value.trim()||"玩家";
+  try{await connect();}catch(err){setStatus(err.message);return;}
+  send({type:"create_room",name});
+}
+async function doJoin(){
+  const name=$("nameInput").value.trim()||"玩家";
+  const code=$("codeInput").value.trim();
+  if(code.length!==6){alert("请输入 6 位房号");return;}
+  try{await connect();}catch(err){setStatus(err.message);return;}
+  send({type:"join_room",roomCode:code,name});
+}
+function startGame(){send({type:"start_game"});}
+function nextRound(){send({type:"next_round"});}
+function doPlay(){
+  if(!selected.size){setStatus("请先点击选择要出的牌");return;}
+  send({type:"play",cardIds:[...selected]});
+  selected.clear();renderHand();
+}
+function doPass(){send({type:"pass"});selected.clear();renderHand();}
+function doHint(){hintIdx=0;send({type:"hint"});}
+function toggleRec(){const r=$("recorder");r.style.display=r.style.display==="none"?"grid":"none";}
+
+/* ================= 弹窗 ================= */
+function openModal(title,tip,cards,okLabel,mode){
+  modalMode=mode; pendingCards=cards;
+  $("modalTitle").textContent=title;
+  $("modalTip").textContent=tip;
+  $("modalPick").innerHTML="";
+  $("modalRank").style.display="none";$("modalRank").innerHTML="";
+  const pick=$("modalPick");
+  cards.forEach(c=>{
+    const el=cardEl(c,"big",false); el.style.cursor="pointer";
+    el.addEventListener("click",()=>{[...pick.children].forEach(x=>{x.style.boxShadow="";});el.style.boxShadow="0 0 0 3px var(--gold)";pick.dataset.sel=c.id;});
+    pick.appendChild(el);
+  });
+  $("modalOk").textContent=okLabel||"确认";
+  $("modalOk").style.display="block";$("modalCancel").style.display="none";
+  $("modal").classList.add("show");
+}
+function modalOk(){
+  const pick=$("modalPick"); const id=pick.dataset.sel;
+  if(!id){setStatus("请先选择一张牌");return;}
+  if(modalMode==="tribute")send({type:"tribute",cardId:id});
+  else if(modalMode==="return")send({type:"return_tribute",cardId:id});
+  $("modal").classList.remove("show");
+}
+function modalCancel(){$("modal").classList.remove("show");}
+
+/* ================= 消息处理 ================= */
+function handle(m){
+  switch(m.type){
+    case "room_created": case "room_joined":{
+      mySeat=m.seat; token=m.token; roomCode=m.code;
+      localStorage.setItem("poker_token",token);
+      $("roomCode").textContent=roomCode;
+      $("mySeatTxt").textContent=mySeat+1;
+      showView("room"); renderRoomSeats();
+      break;
+    }
+    case "room_state":{
+      hostSeat=m.hostSeat;
+      const arr=m.players;
+      for(let i=0;i<arr.length;i++){
+        const p=arr[i];
+        players[p.seat]={seat:p.seat,name:p.name||"",isBot:p.isBot,online:p.online,cardCount:p.cardCount,rank:p.rank||0,last:players[p.seat]?players[p.seat].last:[],trickSeq:players[p.seat]?players[p.seat].trickSeq:0};
+      }
+      gameState=m.state; roundNo=m.round||roundNo;
+      renderRoomSeats(); renderSeats();
+      break;
+    }
+    case "deal":{
+      roundNo=m.round; gameState="playing";
+      hand=m.hand; selected.clear(); hintIdx=0;
+      // 每人 18 张，重置记牌器与各座位手牌数
+      players.forEach((p,i)=>{p.cardCount=18;p.rank=0;p.last=[];p.trickSeq=0;});
+      trickSeq=0;
+      Object.keys(playedCount).forEach(k=>playedCount[k]=0);
+      $("roundNo").textContent=roundNo;
+      showView("game");
+      appendLog("<span class='sep'>———— 第 "+roundNo+" 局开始 ————</span>","sep");
+      renderHand(); renderSeats(); renderRecorder(); updateButtons();
+      break;
+    }
+    case "game_start":{
+      roundNo=m.round; $("roundNo").textContent=roundNo;
+      showView("game");
+      break;
+    }
+    case "turn":{
+      currentTurn=m.seat; free=m.free;
+      if(free){
+        // 新回合开始：清空中央出牌区并递增回合序号（座位上的历史牌随之标记为“上轮”）
+        trickSeq++; tableCards=[]; tableSeat=-1; renderTable();
+      }
+      renderSeats(); updateButtons(); startCd();
+      if(currentTurn===mySeat)setStatus(free?"轮到你了，自由出牌":"轮到你了，请出牌或不要");
+      else setStatus("等待 "+seatName(currentTurn)+" 出牌…");
+      break;
+    }
+    case "played":{
+      const s=m.seat;
+      tableCards=m.cards; tableSeat=s;
+      players[s].last=m.cards.slice(); players[s].trickSeq=trickSeq;
+      m.cards.forEach(c=>playedCount[c.rank]++);
+      if(s===mySeat){
+        const ids=new Set(m.cards.map(c=>c.id));
+        hand=hand.filter(c=>!ids.has(c.id)); selected.clear(); renderHand();
+      }
+      players[s].cardCount=Math.max(0,players[s].cardCount-m.cards.length);
+      renderTable(); renderSeats(); renderRecorder();
+      appendLog((s===mySeat?"<span class='me'>我</span>":"<b>"+seatName(s)+"</b>")+" 出牌（"+m.cards.length+" 张）","act");
+      break;
+    }
+    case "passed":{
+      appendLog(seatName(m.seat)+" 不要");
+      break;
+    }
+    case "player_finished":{
+      players[m.seat].rank=m.rank; players[m.seat].cardCount=0;
+      renderSeats();
+      appendLog(seatName(m.seat)+" 获得第"+m.rank+"名");
+      break;
+    }
+    case "hand_update":{
+      hand=m.hand; selected.clear(); renderHand();
+      players[mySeat].cardCount=hand.length; renderSeats();
+      break;
+    }
+    case "tribute_announce":{appendLog("进入进贡环节");break;}
+    case "tribute_required":{
+      const choices=hand.filter(c=>c.rank===m.maxRank);
+      openModal("进贡：请送手中最大的牌","你上一局是末游，进贡给 "+seatName(m.toSeat),choices,"确认进贡","tribute");
+      break;
+    }
+    case "tribute_paid":{
+      appendLog(seatName(m.fromSeat)+" 进贡 "+RL(m.rank));
+      break;
+    }
+    case "return_tribute_required":{
+      const choices=hand.filter(c=>c.id!==m.forbiddenId);
+      openModal("回贡：选一张给 "+seatName(m.fromSeat),"不能回刚收到的那张牌",choices,"确认回贡","return");
+      break;
+    }
+    case "return_tribute_paid":{
+      appendLog(seatName(m.fromSeat)+" 回贡 "+RL(m.rank));
+      break;
+    }
+    case "tribute_done":{setStatus("进贡完成");break;}
+    case "resistance":{appendLog(seatName(m.seat)+" 手握两张大王，抗贡！");break;}
+    case "round_over":{
+      gameState="round_over"; stopCd();
+      const fr=m.finishRanks;
+      for(let s=0;s<6;s++){players[s].rank=fr[s];players[s].cardCount=0;}
+      renderSeats();
+      modalMode="round";
+      $("modalTitle").textContent="本局结束";
+      $("modalTip").textContent="";
+      $("modalPick").innerHTML="";
+      $("modalRank").style.display="block";
+      const rk=$("modalRank"); rk.innerHTML="";
+      m.ranking.forEach((seat,idx)=>{rk.innerHTML+=`第${idx+1}名：<b>${seatName(seat)}</b><br>`;});
+      if(m.resistanceNext)rk.innerHTML+="<br><span style='color:var(--gold)'>末游手握两张大王，下局抗贡</span>";
+      $("modalOk").textContent=(mySeat===hostSeat)?"开始下一局":"等待房主开始下一局";
+      $("modalOk").style.display="block";$("modalCancel").style.display="none";
+      $("modal").classList.add("show");
+      break;
+    }
+    case "hint_result":{
+      const arr=m.candidates;
+      if(autoMode){
+        autoMode=false;
+        if(arr.length){selected.clear();arr[0].forEach(id=>selected.add(id));renderHand();doPlay();}
+        else doPass();
+        return;
+      }
+      if(!arr.length){setStatus("没有能压过的牌，可点“不要”");return;}
+      selected.clear();
+      const g=arr[hintIdx%arr.length]; hintIdx++;
+      g.forEach(id=>selected.add(id));
+      renderHand();
+      break;
+    }
+    case "error":{
+      setStatus("提示："+m.message);
+      appendLog("⚠ "+m.message);
+      break;
+    }
+    case "state":{restoreState(m);break;}
+  }
+}
+
+function restoreState(m){
+  gameState=m.state; roundNo=m.round||1; currentTurn=m.currentTurn; hostSeat=m.hostSeat; free=true;
+  trickSeq=1; // 重连后按“本回合”处理后续出牌
+  $("roundNo").textContent=roundNo;
+  const arr=m.players;
+  for(let i=0;i<arr.length;i++){
+    const p=arr[i];
+    players[p.seat]={seat:p.seat,name:p.name||"",isBot:p.isBot,online:p.online,cardCount:p.cardCount,rank:p.rank||0,last:[],trickSeq:0};
+  }
+  const t=m.table;
+  if(t){tableCards=t.cards;tableSeat=t.seat;free=false;}else{tableCards=[];tableSeat=-1;}
+  if(m.hand){hand=m.hand;selected.clear();}
+  showView("game");
+  renderHand();renderSeats();renderTable();updateButtons();
+}
+
+/* ===== 键盘快捷键 ===== */
+document.addEventListener("keydown",e=>{
+  if($("gameView").style.display==="none")return;
+  const tag=(e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea")return;
+  if(e.key==="Enter"){e.preventDefault();if(!$("btnPlay").disabled)doPlay();}
+  else if(e.key===" "){e.preventDefault();if(!$("btnPass").disabled)doPass();}
+  else if(e.key==="h"||e.key==="H"){if(!$("btnHint").disabled)doHint();}
+  else if(e.key==="r"||e.key==="R"){toggleRec();}
+});
+
+/* ===== 重连 ===== */
+function tryReconnect(){if(connected)send({type:"reconnect",token:localStorage.getItem("poker_token")||""});}
+window.addEventListener("online",tryReconnect);
+document.addEventListener("DOMContentLoaded",()=>{
+  if(token&&$("ipInput").value){connect().then(()=>send({type:"reconnect",token})).catch(()=>{});}
+});
+</script>
+</body>
+</html>

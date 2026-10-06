@@ -1,0 +1,14 @@
+# 依赖
+node_modules/
+# Android / Gradle 构建产物
+.gradle/
+build/
+app/build/
+*.apk
+*.zip
+local.properties
+# 临时与过程产物
+.tmp-tool-results/
+_shots/
+_backup_old.html
+.DS_Store
