@@ -1,9 +1,16 @@
-// WebSocket 入口：消息路由、房间创建/加入、登录、战绩、断线重连
+// WebSocket 入口 + 网页静态托管：消息路由、房间创建/加入、登录、战绩、断线重连
 import crypto from 'node:crypto';
+import http from 'node:http';
+import path from 'node:path';
+import { promises as fs } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Room } from './room.js';
 import { db } from './db.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// 网页文件：默认 server/web/index.html；可用 WEB_FILE 指定，覆盖后玩家刷新即最新
+const WEB_FILE = process.env.WEB_FILE || path.join(__dirname, '..', 'web', 'index.html');
 const rooms = new Map(); // code -> Room
 const tokenIndex = new Map(); // token -> { code, seat }
 const PORT = process.env.PORT || 8080;
@@ -97,7 +104,24 @@ async function handle(ws, msg) {
   }
 }
 
-const wss = new WebSocketServer({ port: PORT });
+// 同一端口：HTTP 托管网页（GET / 返回 index.html），WebSocket 复用同一 server
+const server = http.createServer(async (req, res) => {
+  if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
+    try {
+      const html = await fs.readFile(WEB_FILE, 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(html);
+    } catch {
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('网页文件不存在：' + WEB_FILE);
+    }
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Not Found');
+  }
+});
+
+const wss = new WebSocketServer({ server });
 wss.on('connection', (ws) => {
   ws._room = null;
   ws._seat = -1;
@@ -112,4 +136,9 @@ wss.on('connection', (ws) => {
   });
 });
 
-console.log(`六人扑克服务器已启动，监听端口 ${PORT}（数据目录 ${process.env.DATA_DIR || '<server>/data'}）`);
+server.listen(PORT, () => {
+  console.log(`六人扑克服务器已启动，监听端口 ${PORT}`);
+  console.log(`  网页入口：http://localhost:${PORT}/  （WebSocket 同源 wss/ws）`);
+  console.log(`  数据目录：${process.env.DATA_DIR || '<server>/data'}`);
+  console.log(`  网页文件：${WEB_FILE}（覆盖后刷新即最新）`);
+});
