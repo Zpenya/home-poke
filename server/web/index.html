@@ -79,7 +79,7 @@
     box-shadow:0 4px 14px rgba(0,0,0,.5)}
   .topbar .tag{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-weight:600}
   .topbar .btn-sm{min-height:24px;padding:0 10px;font-size:11px}
-  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:auto 1fr;gap:6px;padding:8px;
+  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:minmax(100px,1fr) 1.2fr;gap:6px;padding:8px;
     background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.06),rgba(0,0,0,.16) 75%);
     border:1px solid var(--line);border-radius:18px}
   .gseat{background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.16);border-radius:13px;
@@ -102,8 +102,9 @@
   .passTag{font-size:11px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:5px;padding:2px 9px}
   .oldtag{font-size:9px;color:#9fb3c5;background:rgba(0,0,0,.4);border-radius:3px;padding:0 4px;line-height:1.4}
 
-  /* 自己的出牌：手牌上方一行小显示（替代原自座椅位） */
-  .mylast{display:none;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--gold);padding:2px 0;min-height:0}
+  /* 自己的出牌：浮于右中座位格顶部，不占额外高度 */
+  .mylast{display:none;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--gold);padding:2px 8px;
+    grid-column:3;grid-row:2;align-self:start;justify-self:center;white-space:nowrap;z-index:5}
   .mylast .myLabel{font-weight:800}
   .mylast .myPass{font-size:11px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:5px;padding:1px 8px}
   .mylast .mini-card{height:32px;min-width:20px;padding:0 3px}
@@ -205,16 +206,20 @@
     #gameView{gap:4px}
     .topbar .tag{font-size:11px;padding:2px 10px}
     .topbar .btn-sm{min-height:24px;padding:0 10px;font-size:11px}
-    .handpanel{padding:5px 8px 8px}
-    .handbar{font-size:11px;padding:0 4px 4px}
+    .handpanel{padding:3px 8px 6px}
+    .handbar{font-size:11px;padding:0 4px 3px}
     .actions{margin:2px 0 0}
     .actions button{min-height:24px;font-size:12px;padding:0 12px;border-radius:7px}
-    .fan{min-height:80px;padding:10px 4px 4px}
-    .fan .card{width:50px;height:70px;border-radius:7px;margin-left:-30px}
+    .fan{min-height:72px;padding:6px 4px 4px}
+    .fan .card{width:50px;height:66px;border-radius:7px;margin-left:-30px}
     .fan .card.sel{transform:translateY(-12px)}
     #tableZone{min-height:56px}
     #tableZone .card{width:36px;height:51px;margin-left:-20px}
-    .board{grid-template-rows:auto 1fr}
+    .board{grid-template-rows:minmax(88px,1fr) 1.15fr}
+    .mylast{font-size:11px;padding:1px 6px;gap:3px}
+    .mylast .mini-card{height:26px;min-width:17px;padding:0 2px}
+    .mylast .mini-card span{font-size:10px}
+    .mylast .mini-card .ms{font-size:7px}
     .cself{display:none}
     .center{gap:3px;padding:3px}
     #status{font-size:13px;min-height:18px}
@@ -312,10 +317,10 @@
           <button class="btn-gy" id="btnEntrust" onclick="toggleEntrust()">托管</button>
         </div>
       </div>
+      <div id="myLastRow" class="mylast"></div>
     </div>
 
     <div class="handpanel">
-      <div id="myLastRow" class="mylast"></div>
       <div class="handbar"><span>我的手牌（<span id="handCount">0</span> 张）</span><span id="selCount">已选 0 张</span></div>
       <div class="fan" id="handArea"></div>
     </div>
@@ -429,8 +434,8 @@ function renderSeats(){
     }else{body=`<div class="last"><span class="ph">等待加入</span></div>`;}
     d.innerHTML=`<div class="arrow">${arrow}</div><div class="meta"><span class="name">${nm}</span>${cnt}</div>${body}`;
   }
-  // 清理可能遗留的多余座位节点
-  [...board.children].forEach(ch=>{if(ch!==center&&!ch.dataset.seat)ch.remove();});
+  // 清理可能遗留的多余座位节点（保留 center 与 myLastRow）
+  [...board.children].forEach(ch=>{if(ch!==center&&ch.id!=="myLastRow"&&!ch.dataset.seat)ch.remove();});
 }
 function renderRoomSeats(){
   const wrap=$("roomSeats");wrap.innerHTML="";
