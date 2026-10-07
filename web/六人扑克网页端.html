@@ -178,13 +178,22 @@
   <div id="connView" class="panel">
     <h2>♠ 六人争上游</h2>
     <div class="row"><input id="ipInput" placeholder="服务器地址，如 127.0.0.1:8080"></div>
-    <div class="row" style="margin-top:8px"><input id="nameInput" placeholder="你的昵称"></div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn-g" style="flex:1;padding:12px 0" onclick="doCreate()">创建房间</button>
-      <button class="btn-b" style="flex:1;padding:12px 0" onclick="doJoin()">加入房间</button>
+    <div class="row" style="margin-top:8px">
+      <input id="nameInput" placeholder="昵称（账号）">
+      <input id="passInput" type="password" placeholder="密码（首登即注册）">
     </div>
-    <div class="row" style="margin-top:8px"><input id="codeInput" placeholder="输入 6 位房号"></div>
-    <div class="hint">创建者填服务器地址和昵称点“创建房间”；其余人填同样地址、昵称和房号。人满后房主开局，空位自动补机器人。快捷键：回车=出牌、空格=不要、H=提示、R=记牌器。</div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn-g" style="flex:1;padding:12px 0" onclick="doLogin()">登录</button>
+      <button class="btn-b" style="flex:1;padding:12px 0" onclick="doStats()">战绩 & 排名</button>
+    </div>
+    <div id="roomOps" style="display:none;margin-top:10px">
+      <div class="row">
+        <button class="btn-g" style="flex:1;padding:12px 0" onclick="doCreate()">创建房间</button>
+        <button class="btn-b" style="flex:1;padding:12px 0" onclick="doJoin()">加入房间</button>
+      </div>
+      <div class="row" style="margin-top:8px"><input id="codeInput" placeholder="输入 6 位房号"></div>
+    </div>
+    <div class="hint">先“登录”账号（昵称+密码，首次自动注册并统计战绩），成功后即可创建或加入房间。战绩可随时查看自己的局数/胜场与全服排名。快捷键：回车=出牌、空格=不要、H=提示、R=战绩&记录。</div>
   </div>
 
   <div id="roomView" class="panel" style="display:none">
@@ -197,7 +206,7 @@
   <div id="gameView" style="display:none">
     <div class="topbar">
       <span class="tag">第 <span id="roundNo">1</span> 局 · 座位 <span id="mySeatTxt"></span></span>
-      <button class="btn-gy btn-sm" onclick="toggleRec()">记牌器</button>
+      <button class="btn-gy btn-sm" onclick="toggleLower()">战绩 & 记录</button>
     </div>
 
     <div class="table" id="board">
@@ -219,9 +228,9 @@
       </div>
     </div>
 
-    <div class="lower">
+    <div class="lower" id="lower" style="display:none">
       <div class="side">
-        <h4 onclick="toggleRec()">记牌器 · 剩余张数</h4>
+        <h4 onclick="toggleLower()">记牌器 · 剩余张数</h4>
         <div class="recorder" id="recorder"></div>
       </div>
       <div class="side">
@@ -261,6 +270,7 @@ const $=id=>document.getElementById(id);
 const RL=r=>r<=10?String(r):({11:"J",12:"Q",13:"K",14:"A",15:"2",16:"小王",17:"大王"}[r]);
 const SS=s=>["♠","♥","♣","♦"][s]||"";
 const RD=c=>c.suit===1||c.rank===17;
+function cardText(c){ if(!c)return""; return c.suit===4?RL(c.rank):RL(c.rank)+SS(c.suit); }
 function seatName(s){return players[s]?(s===mySeat?"我":(players[s].name||"空")):"空";}
 function avatarChar(s){return s===mySeat?"我":(players[s].name||"空").charAt(0);}
 
@@ -417,12 +427,50 @@ function connect(){
 }
 function send(o){if(ws&&connected)ws.send(JSON.stringify(o));}
 
-async function doCreate(){const name=$("nameInput").value.trim()||"玩家";try{await connect();}catch(err){setStatus(err.message);return;}send({type:"create_room",name});}
+let loggedIn=false, userName="", myStats=null, rankList=null;
+async function doLogin(){
+  const name=$("nameInput").value.trim();
+  if(!name){setStatus("请输入昵称");return;}
+  try{await connect();}catch(err){setStatus(err.message);return;}
+  send({type:"login",name,password:$("passInput").value||""});
+  setStatus("正在登录…");
+}
+async function doCreate(){
+  if(!loggedIn){setStatus("请先登录账号");return;}
+  try{await connect();}catch(err){setStatus(err.message);return;}
+  send({type:"create_room",name:userName});
+}
 async function doJoin(){
-  const name=$("nameInput").value.trim()||"玩家"; const code=$("codeInput").value.trim();
+  if(!loggedIn){setStatus("请先登录账号");return;}
+  const code=$("codeInput").value.trim();
   if(code.length!==6){alert("请输入 6 位房号");return;}
   try{await connect();}catch(err){setStatus(err.message);return;}
-  send({type:"join_room",roomCode:code,name});
+  send({type:"join_room",roomCode:code,name:userName});
+}
+async function doStats(){
+  try{await connect();}catch(err){setStatus(err.message);return;}
+  if(loggedIn)send({type:"get_stats"});
+  send({type:"get_ranking"});
+  setStatus("正在拉取战绩…");
+}
+function showRankingModal(){
+  const title=$("modalTitle"), tip=$("modalTip"), pick=$("modalPick"), rank=$("modalRank");
+  modalMode="";
+  title.textContent="战绩 & 排行榜";
+  tip.textContent="";
+  pick.innerHTML="";
+  rank.style.display="block";
+  let h="<div style='text-align:left;line-height:2'>";
+  if(myStats)h+=`<div style='color:var(--gold);font-weight:800;margin-bottom:6px'>我的战绩：${myStats.games} 局 · 胜 ${myStats.wins} · 胜率 ${myStats.games?Math.round(myStats.wins/myStats.games*100):0}%</div>`;
+  h+="<table style='width:100%;border-collapse:collapse;font-size:14px'><tr style='color:var(--sub)'><th>名次</th><th>昵称</th><th>局数</th><th>胜场</th><th>胜率</th></tr>";
+  (rankList||[]).forEach((r,i)=>{
+    h+=`<tr${r.name===userName?" style='color:var(--gold);font-weight:800'":""}><td>${i+1}</td><td>${r.name}</td><td>${r.games}</td><td>${r.wins}</td><td>${r.games?Math.round(r.wins/r.games*100):0}%</td></tr>`;
+  });
+  h+="</table></div>";
+  rank.innerHTML=h;
+  $("modalOk").textContent="关闭"; $("modalOk").className="btn-g";
+  $("modalOk").style.display="block";$("modalCancel").style.display="none";
+  $("modal").classList.add("show");
 }
 function startGame(){send({type:"start_game"});}
 function doPlay(){
@@ -439,7 +487,7 @@ function doHint(){
   if(currentTurn!==mySeat){setStatus("还没轮到你");return;}
   hintIdx=0;send({type:"hint"});
 }
-function toggleRec(){const r=$("recorder");r.style.display=r.style.display==="none"?"grid":"none";}
+function toggleLower(){const l=$("lower");l.style.display=l.style.display==="none"?"grid":"none";}
 
 function openModal(title,tip,cards,okLabel,mode){
   modalMode=mode;
@@ -464,6 +512,10 @@ function modalOk(){
     else{setStatus("请等待房主开始下一局");}
     return;
   }
+  // 纯展示弹窗（排行榜等）：直接关闭
+  if(modalMode!=="tribute"&&modalMode!=="return"){
+    $("modal").classList.remove("show"); return;
+  }
   const pick=$("modalPick"); const id=pick.dataset.sel;
   if(!id){setStatus("请先选择一张牌");return;}
   if(modalMode==="tribute")send({type:"tribute",cardId:id});
@@ -474,6 +526,15 @@ function modalCancel(){$("modal").classList.remove("show");}
 
 function handle(m){
   switch(m.type){
+    case "login_ok":{
+      loggedIn=true; userName=m.name; myStats=m.stats;
+      $("roomOps").style.display="block";
+      setStatus("欢迎，"+userName+"（已登录）");
+      break;
+    }
+    case "login_fail":{setStatus("登录失败："+(m.message||"密码不正确"));break;}
+    case "stats":{myStats=m.stats;if(rankList)showRankingModal();break;}
+    case "ranking":{rankList=m.list;showRankingModal();break;}
     case "room_created": case "room_joined":{
       mySeat=m.seat; token=m.token; roomCode=m.code;
       localStorage.setItem("poker_token",token);
@@ -544,13 +605,13 @@ function handle(m){
       openModal("进贡 · 送手中最大的牌","你上一局是末游，进贡给 "+seatName(m.toSeat),choices,"确认进贡","tribute");
       break;
     }
-    case "tribute_paid":{appendLog(seatName(m.fromSeat)+" 进贡 "+RL(m.rank));break;}
+    case "tribute_paid":{appendLog(seatName(m.fromSeat)+" 进贡"+(m.toSeat===mySeat?"给你 ":" ")+cardText(m.card));break;}
     case "return_tribute_required":{
       const choices=hand.filter(c=>c.id!==m.forbiddenId);
       openModal("回贡 · 选一张给 "+seatName(m.fromSeat),"不能回刚收到的那张牌",choices,"确认回贡","return");
       break;
     }
-    case "return_tribute_paid":{appendLog(seatName(m.fromSeat)+" 回贡 "+RL(m.rank));break;}
+    case "return_tribute_paid":{appendLog(seatName(m.fromSeat)+" 回贡"+(m.toSeat===mySeat?"给你 ":" ")+cardText(m.card));break;}
     case "tribute_done":{setStatus("进贡完成");break;}
     case "resistance":{appendLog(seatName(m.seat)+" 手握两张大王，抗贡！");break;}
     case "round_over":{
@@ -620,7 +681,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Enter"){e.preventDefault();if(!$("btnPlay").disabled)doPlay();}
   else if(e.key===" "){e.preventDefault();if(!$("btnPass").disabled)doPass();}
   else if(e.key==="h"||e.key==="H"){if(!$("btnHint").disabled)doHint();}
-  else if(e.key==="r"||e.key==="R"){toggleRec();}
+  else if(e.key==="r"||e.key==="R"){toggleLower();}
 });
 document.addEventListener("DOMContentLoaded",()=>{
   if(token&&$("ipInput").value){connect().then(()=>send({type:"reconnect",token})).catch(()=>{});}

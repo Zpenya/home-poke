@@ -5,11 +5,24 @@ import { botTributeChoice, botReturnChoice, botPlay } from './bot.js';
 let botSeq = 0;
 
 export class Room {
-  constructor(code) {
+  constructor(code, db) {
     this.code = code;
     this.players = Array(6).fill(null);
     this.hostSeat = -1;
     this.game = new Game(this);
+    this.db = db || null;
+  }
+
+  // 一局结束：把各账号（非机器人）名次写入数据库统计
+  onRoundEnd(finishRanks) {
+    if (!this.db) return;
+    const results = [];
+    for (let s = 0; s < 6; s++) {
+      const p = this.players[s];
+      if (!p || p.isBot || !p.name) continue;
+      results.push({ name: p.name, rank: finishRanks[s] });
+    }
+    if (results.length) this.db.recordRound(results);
   }
 
   occupied() {

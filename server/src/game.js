@@ -136,7 +136,7 @@ export class Game {
     this.tribute.card = card;
     this.tribute.stage = 'return';
     this.logEvent({ kind: 'tribute', from, to, rank: card.rank });
-    this.room.broadcast({ type: 'tribute_paid', fromSeat: from, toSeat: to, rank: card.rank });
+    this.room.broadcast({ type: 'tribute_paid', fromSeat: from, toSeat: to, card });
     this.room.sendTo(from, { type: 'hand_update', hand: this.hands[from] });
     this.room.sendTo(to, { type: 'hand_update', hand: this.hands[to] });
     this.room.sendTo(to, {
@@ -161,7 +161,7 @@ export class Game {
     sortHand(this.hands[from]);
     this.logEvent({ kind: 'return_tribute', from: to, to: from, rank: removed[0].rank });
     this.room.broadcast({
-      type: 'return_tribute_paid', fromSeat: to, toSeat: from, rank: removed[0].rank,
+      type: 'return_tribute_paid', fromSeat: to, toSeat: from, card: removed[0],
     });
     this.room.sendTo(from, { type: 'hand_update', hand: this.hands[from] });
     this.room.sendTo(to, { type: 'hand_update', hand: this.hands[to] });
@@ -265,6 +265,7 @@ export class Game {
       finishRanks: this.finishRanks,
       resistanceNext: hasTwoBigJokers(this.hands[last]),
     });
+    this.room.onRoundEnd?.(this.finishRanks);
   }
 
   promptTurn() {
