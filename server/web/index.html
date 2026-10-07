@@ -47,18 +47,22 @@
     border:1px solid #b8c2cf;box-shadow:0 3px 7px rgba(0,0,0,.45);
     font-family:Georgia,"Times New Roman",serif;color:#1b1f24;user-select:none}
   .card .corner{position:absolute;left:5px;top:3px;text-align:center;line-height:1.05;font-weight:800}
-  .card .corner .crank{font-size:16px;display:block}
-  .card .corner .csuit{font-size:10px;display:block;margin-top:1px}
-  .card .pip{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:30px;line-height:1}
+  .card .corner .crank{font-size:19px;display:block}
+  .card .corner .csuit{font-size:12px;display:block;margin-top:2px}
+  .card .pip{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:38px;line-height:1}
   .card.red{color:var(--red)}
-  .card.joker .pip{font-size:22px;font-weight:800}
+  .card.joker .pip{font-size:20px;font-weight:800}
   .card.mini{width:30px;height:43px;border-radius:5px;box-shadow:0 2px 4px rgba(0,0,0,.4)}
   .card.mini .corner{left:3px;top:2px}
   .card.mini .crank{font-size:13px}
   .card.mini .csuit{font-size:7px}
-  /* SVG 牌面 */
-  .card .cimg{width:100%;height:100%;display:block;object-fit:fill;border-radius:7px}
-  .mini-card{height:52px;width:auto;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,.4);display:block;pointer-events:none}
+  /* 自建 CSS 牌面（无 SVG 图片，字体清晰锐利） */
+  .mini-card{height:42px;min-width:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    background:linear-gradient(150deg,#fff 0%,#f0f3f7 70%,#e2e7ed 100%);border:1px solid #b8c2cf;border-radius:6px;
+    font-weight:800;color:#1b1f24;box-shadow:0 2px 4px rgba(0,0,0,.4);padding:0 5px;pointer-events:none;font-family:Georgia,"Times New Roman",serif}
+  .mini-card.red{color:var(--red)}
+  .mini-card span{font-size:15px;line-height:1}
+  .mini-card .ms{font-size:11px}
 
   /* ===== 登录 / 大厅 ===== */
   #connView{max-width:480px;margin:auto;width:100%;text-align:center;padding:26px 20px}
@@ -112,7 +116,9 @@
   #tableZone .empty{color:var(--dim);font-size:13px}
   #tableZone .card{width:48px;height:68px;margin-left:-30px}
   #tableZone .card:first-child{margin-left:0}
-  #tableZone .card .corner .crank{font-size:15px}
+  #tableZone .card .corner .crank{font-size:17px}
+  #tableZone .card .corner .csuit{font-size:11px}
+  #tableZone .card .pip{font-size:30px}
 
   /* ===== 手牌区 ===== */
   .handpanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px 10px 10px}
@@ -175,6 +181,13 @@
     .card{width:40px;height:58px}
     .gseat .last .cards .card{width:22px;height:32px}
     .fan .card{width:40px;height:58px;margin-left:-24px}
+    .card .corner .crank{font-size:13px}
+    .card .corner .csuit{font-size:9px}
+    .card .pip{font-size:26px}
+    .card.joker .pip{font-size:14px}
+    .mini-card{height:24px;min-width:16px;padding:0 3px;gap:0}
+    .mini-card span{font-size:10px}
+    .mini-card .ms{font-size:7px}
   }
 
   /* ===== 手机横屏紧凑（主场景） ===== */
@@ -202,7 +215,16 @@
     .gseat .name{font-size:10px;max-width:52px}
     .gseat .cnt{font-size:10px;padding:0 5px}
     .gseat .last{min-height:30px;gap:1px}
-    .mini-card{height:26px}
+    .mini-card{height:28px;min-width:20px;padding:0 4px;gap:0}
+    .mini-card span{font-size:11px}
+    .mini-card .ms{font-size:8px}
+    .fan .card .corner .crank{font-size:15px}
+    .fan .card .corner .csuit{font-size:10px}
+    .fan .card .pip{font-size:27px}
+    .fan .card.joker .pip{font-size:13px}
+    #tableZone .card .corner .crank{font-size:15px}
+    #tableZone .card .corner .csuit{font-size:10px}
+    #tableZone .card .pip{font-size:28px}
     .gseat .last .ph,.gseat .last .passTag{font-size:10px}
     .passTag{padding:1px 6px}
     .oldtag{font-size:8px}
@@ -352,11 +374,15 @@ function cardFile(c){
 function cardEl(c){
   const d=document.createElement("div");d.className="card"+(RD(c)?" red":"");
   d.dataset.id=c.id;
-  d.innerHTML=`<img class="cimg" src="${cardFile(c)}" alt="" draggable="false">`;
+  const r=RL(c.rank),jk=c.rank>=16;
+  const sym=jk?"★":SS(c.suit);
+  d.innerHTML=`<div class="corner"><span class="crank">${jk?"王":r}</span><span class="csuit">${sym}</span></div><div class="pip">${jk?(c.rank===17?"大王":"小王"):sym}</div>`;
   return d;
 }
 function miniCardHTML(c){
-  return `<img class="mini-card" src="${cardFile(c)}" alt="">`;
+  const r=RL(c.rank),jk=c.rank>=16;
+  const sym=jk?"★":SS(c.suit);
+  return `<div class="mini-card${RD(c)?" red":""}"><span>${jk?"王":r}</span><span class="ms">${sym}</span></div>`;
 }
 function appendLog(t,cls){const l=$("log"),line=document.createElement("div");line.innerHTML=t;if(cls)line.className=cls;l.appendChild(line);l.scrollTop=l.scrollHeight;}
 function setStatus(t){const s=$("status");if(s)s.textContent=t;}
