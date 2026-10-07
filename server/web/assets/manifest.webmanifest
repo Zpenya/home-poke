@@ -1,0 +1,15 @@
+﻿{
+  "name": "六人争上游",
+  "short_name": "六人扑克",
+  "description": "六人两副牌争上游 · 进贡回贡",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0b1a2b",
+  "theme_color": "#0b1a2b",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

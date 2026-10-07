@@ -144,7 +144,7 @@ const server = http.createServer(async (req, res) => {
     const base = path.dirname(WEB_FILE);
     const file = path.join(base, url.replace(/^\/+/, ''));
     if (!file.startsWith(base + path.sep)) { res.writeHead(403); res.end('Forbidden'); return; }
-    const MIME = { '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.json': 'application/json' };
+    const MIME = { '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
     try {
       const data = await fs.readFile(file);
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });

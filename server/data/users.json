@@ -1,0 +1,35 @@
+{
+  "叔叔": {
+    "name": "叔叔",
+    "salt": "be655679f7aac94b490a6b90d5defada",
+    "hash": "bb81287b45b9d815927ab62d07a11c822adfd14492bf8276f890037af5c033b6",
+    "createdAt": 1791348348910,
+    "stats": {
+      "games": 3,
+      "wins": 2,
+      "rankSum": 5
+    }
+  },
+  "ss": {
+    "name": "ss",
+    "salt": "8ab351e34e8b1e2b5c502583a6b1b038",
+    "hash": "d11e65464b01ce548c4a23944c2b0ab9227ebf97d3387a5dac6e243884061b5c",
+    "createdAt": 1791360976693,
+    "stats": {
+      "games": 0,
+      "wins": 0,
+      "rankSum": 0
+    }
+  },
+  "外网测试": {
+    "name": "外网测试",
+    "salt": "a82211b0c2445e66817872f729537209",
+    "hash": "f1a7cce73a1ec012a8bc356c529c0a55fbdc912cf06eab45e7cabd25c9d5b461",
+    "createdAt": 1791372114480,
+    "stats": {
+      "games": 0,
+      "wins": 0,
+      "rankSum": 0
+    }
+  }
+}

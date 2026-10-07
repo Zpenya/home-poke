@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>六人争上游 · 扑克</title>
+<link rel="manifest" href="assets/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="六人扑克">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="icon" type="image/png" href="assets/icon-192.png">
 <style>
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;outline:none}
   :root{
@@ -219,6 +226,7 @@
     <div class="topbar">
       <span class="tag">第 <span id="roundNo">1</span> 局 · 座位 <span id="mySeatTxt"></span></span>
       <span style="display:flex;gap:8px">
+        <button class="btn-gy btn-sm" onclick="toggleFull()">⛶ 全屏</button>
         <button class="btn-gy btn-sm" onclick="toggleLower()">记录</button>
         <button class="btn-gy btn-sm" onclick="showStatModal('stats')">战绩 & 排名</button>
       </span>
@@ -533,6 +541,14 @@ function doPass(){
 }
 function doHint(){if(currentTurn!==mySeat){setStatus("还没轮到你");return;}hintIdx=0;send({type:"hint"});}
 function toggleLower(){const l=$("lower");l.classList.toggle("on");}
+function toggleFull(){
+  const d=document.documentElement;
+  if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+    (d.requestFullscreen?d.requestFullscreen():d.webkitRequestFullscreen?d.webkitRequestFullscreen():Promise.resolve()).catch(()=>setHint("当前浏览器不支持全屏，建议「添加到主屏幕」后从桌面图标打开"));
+  }else{
+    (document.exitFullscreen?document.exitFullscreen():document.webkitExitFullscreen?document.webkitExitFullscreen():null);
+  }
+}
 
 function openModal(title,tip,cards,okLabel,mode){
   modalMode=mode;
