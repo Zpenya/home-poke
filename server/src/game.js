@@ -312,6 +312,7 @@ export class Game {
     }));
     return {
       type: 'state',
+      seat,
       state: this.state,
       round: this.round,
       currentTurn: this.currentTurn,

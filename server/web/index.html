@@ -45,7 +45,7 @@
   .card{position:relative;width:72px;height:100px;border-radius:9px;flex-shrink:0;
     background:linear-gradient(150deg,#fff 0%,#f2f5f9 60%,#e6ebf1 100%);
     border:1px solid #b8c2cf;box-shadow:0 3px 7px rgba(0,0,0,.45);
-    font-family:Georgia,"Times New Roman",serif;color:#1b1f24;user-select:none}
+    font-family:Georgia,"Times New Roman",serif;color:#1b1f24;user-select:none;touch-action:none}
   .card .corner{position:absolute;left:5px;top:3px;text-align:center;line-height:1.05;font-weight:800}
   .card .corner .crank{font-size:19px;display:block}
   .card .corner .csuit{font-size:12px;display:block;margin-top:2px}
@@ -141,6 +141,7 @@
   .actions{display:flex;gap:6px;justify-content:center;margin:2px 0 0}
   .actions button{flex:0 0 auto;min-height:28px;font-size:12px;padding:0 14px;border-radius:8px}
   .actions button.hot{filter:brightness(1.14);box-shadow:0 0 0 2px var(--gold),0 2px 0 #047857;transform:scale(1.03)}
+  .actions button.on{background:linear-gradient(180deg,#fbbf24,#d97706);box-shadow:0 3px 0 #b45309;color:#1c1917}
 
   /* ===== 记录悬浮框（记牌器+出牌记录） ===== */
   .recorder{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
@@ -308,6 +309,7 @@
           <button class="btn-g" id="btnPlay" onclick="doPlay()">出牌</button>
           <button class="btn-gy" id="btnPass" onclick="doPass()">不要</button>
           <button class="btn-b" id="btnHint" onclick="doHint()">提示</button>
+          <button class="btn-gy" id="btnEntrust" onclick="toggleEntrust()">托管</button>
         </div>
       </div>
     </div>
@@ -352,6 +354,7 @@ let hand=[],selected=new Set(),currentTurn=-1,free=false,tableCards=[],tableSeat
 let gameState="idle",roundNo=0,hintIdx=0,autoMode=false,cdTimer=null,cdTotal=20,cdLeft=0,trickSeq=0;
 let passSeats=new Set();
 let myLastAction=null,myFreeTurn=false;
+let entrusted=false;
 let players=Array.from({length:6},(_,i)=>({seat:i,name:"",isBot:false,online:false,cardCount:0,rank:0,last:[],trickSeq:0}));
 let modalMode="";
 const RANK_TOTAL={3:8,4:8,5:8,6:8,7:8,8:8,9:8,10:8,11:8,12:8,13:8,14:8,15:8,16:2,17:2};
@@ -445,7 +448,7 @@ function renderRoomSeats(){
 function renderHand(){
   const wrap=$("handArea");wrap.innerHTML="";
   const sorted=[...hand].sort((a,b)=>b.rank-a.rank||b.suit-a.suit||b.deck-a.deck);
-  sorted.forEach(c=>{const el=cardEl(c);el.addEventListener("click",()=>toggleSel(c.id));if(selected.has(c.id))el.classList.add("sel");wrap.appendChild(el);});
+  sorted.forEach(c=>{const el=cardEl(c);el.addEventListener("click",()=>onCardClick(c.id));if(selected.has(c.id))el.classList.add("sel");wrap.appendChild(el);});
   $("handCount").textContent=hand.length;
   $("selCount").textContent="已选 "+selected.size+" 张";
 }
@@ -498,6 +501,51 @@ function toggleSel(id){
   $("selCount").textContent="已选 "+selected.size+" 张";
 }
 
+/* ===== 拖动选牌：手指/鼠标在手牌上划过批量选中 ===== */
+let dragDown=null,dragActive=false,skipClick=false;
+function onCardClick(id){
+  if(skipClick){skipClick=false;return;}
+  toggleSel(id);
+}
+function initDragSelect(){
+  const area=$("handArea");
+  if(!area)return;
+  function cardAt(x,y){
+    const el=document.elementFromPoint(x,y);
+    return el&&el.closest?el.closest(".card"):null;
+  }
+  area.addEventListener("pointerdown",e=>{
+    if(gameState!=="playing")return;
+    const card=e.target.closest(".card");
+    if(!card)return;
+    e.preventDefault();
+    dragDown={x:e.clientX,y:e.clientY,start:card};
+    dragActive=false;
+  });
+  window.addEventListener("pointermove",e=>{
+    if(!dragDown)return;
+    if(!dragActive&&Math.hypot(e.clientX-dragDown.x,e.clientY-dragDown.y)>7)dragActive=true;
+    if(!dragActive)return;
+    const cur=cardAt(e.clientX,e.clientY);
+    if(!cur)return;
+    const cards=[...area.querySelectorAll(".card")];
+    const i0=cards.indexOf(dragDown.start),i1=cards.indexOf(cur);
+    if(i0<0||i1<0)return;
+    const lo=Math.min(i0,i1),hi=Math.max(i0,i1);
+    for(let i=lo;i<=hi;i++){
+      const id=cards[i].dataset.id;
+      if(!selected.has(id)){selected.add(id);cards[i].classList.add("sel");}
+    }
+    $("selCount").textContent="已选 "+selected.size+" 张";
+  });
+  window.addEventListener("pointerup",()=>{
+    if(dragActive)skipClick=true;
+    dragDown=null;dragActive=false;
+  });
+  window.addEventListener("pointercancel",()=>{dragDown=null;dragActive=false;});
+}
+initDragSelect();
+
 function startCd(){
   stopCd();
   if(currentTurn!==mySeat||gameState!=="playing")return;
@@ -507,7 +555,7 @@ function startCd(){
 function stopCd(){if(cdTimer){clearInterval(cdTimer);cdTimer=null;}$("cdbar").style.display="none";$("cdNum").textContent="";}
 function autoAct(){
   if(currentTurn!==mySeat||gameState!=="playing")return;
-  if(!free){doPass();return;}
+  if(autoMode)return; // 防止重复触发
   autoMode=true;send({type:"hint"});
 }
 
@@ -632,6 +680,13 @@ function doPass(){
   send({type:"pass"});selected.clear();renderHand();
 }
 function doHint(){if(currentTurn!==mySeat){setStatus("还没轮到你");return;}hintIdx=0;send({type:"hint"});}
+function toggleEntrust(){
+  entrusted=!entrusted;
+  const b=$("btnEntrust");
+  if(b){b.textContent=entrusted?"托管中":"托管";b.classList.toggle("on",entrusted);}
+  setStatus(entrusted?"已开启托管 · 轮到你会自动出牌":"已关闭托管 · 手动出牌");
+  if(entrusted&&currentTurn===mySeat&&gameState==="playing")autoAct();
+}
 function toggleLower(){const m=$("lowerModal");if(!m)return;m.classList.toggle("show");}
 function toggleFull(){
   const d=document.documentElement;
@@ -713,7 +768,10 @@ function handle(m){
       currentTurn=m.seat;free=m.free;syncUI();
       if(free){trickSeq++;tableCards=[];tableSeat=-1;passSeats.clear();myFreeTurn=(m.seat===mySeat);try{renderTable();}catch(e){}renderPassLine();}
       startCd();
-      if(currentTurn===mySeat)setStatus(free?"轮到你了 · 自由出牌":"轮到你了 · 请出牌或不要");
+      if(currentTurn===mySeat){
+        if(entrusted){setStatus("托管中 · 自动出牌…");autoAct();}
+        else setStatus(free?"轮到你了 · 自由出牌":"轮到你了 · 请出牌或不要");
+      }
       else setStatus("等待 "+seatName(currentTurn)+" 出牌…");
       break;}
     case "played":{
@@ -783,6 +841,7 @@ function handle(m){
   }
 }
 function restoreState(m){
+  if(m.seat!=null)mySeat=m.seat;
   gameState=m.state;roundNo=m.round||1;currentTurn=m.currentTurn;hostSeat=m.hostSeat;free=true;
   trickSeq=1;$("roundNo").textContent=roundNo;
   const arr=m.players;
@@ -801,6 +860,7 @@ function restoreState(m){
     });
   }
   if(m.table)setStatus("轮次继续 · 当前需压 "+seatName(tableSeat)+" 的牌");
+  if(entrusted&&currentTurn===mySeat&&gameState==="playing"){setStatus("托管中 · 自动出牌…");autoAct();}
 }
 document.addEventListener("keydown",e=>{
   if($("gameView").style.display==="none")return;
@@ -809,6 +869,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Enter"){e.preventDefault();if(!$("btnPlay").disabled)doPlay();}
   else if(e.key===" "){e.preventDefault();if(!$("btnPass").disabled)doPass();}
   else if(e.key==="h"||e.key==="H"){if(!$("btnHint").disabled)doHint();}
+  else if(e.key==="e"||e.key==="E"){toggleEntrust();}
   else if(e.key==="r"||e.key==="R"){toggleLower();}
 });
 document.addEventListener("DOMContentLoaded",()=>{
