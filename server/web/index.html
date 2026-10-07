@@ -57,12 +57,12 @@
   .card.mini .crank{font-size:13px}
   .card.mini .csuit{font-size:7px}
   /* 自建 CSS 牌面（无 SVG 图片，字体清晰锐利） */
-  .mini-card{height:42px;min-width:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  .mini-card{height:46px;min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
     background:linear-gradient(150deg,#fff 0%,#f0f3f7 70%,#e2e7ed 100%);border:1px solid #b8c2cf;border-radius:6px;
     font-weight:800;color:#1b1f24;box-shadow:0 2px 4px rgba(0,0,0,.4);padding:0 5px;pointer-events:none;font-family:Georgia,"Times New Roman",serif}
   .mini-card.red{color:var(--red)}
-  .mini-card span{font-size:15px;line-height:1}
-  .mini-card .ms{font-size:11px}
+  .mini-card span{font-size:16px;line-height:1}
+  .mini-card .ms{font-size:12px}
 
   /* ===== 登录 / 大厅 ===== */
   #connView{max-width:480px;margin:auto;width:100%;text-align:center;padding:26px 20px}
@@ -79,7 +79,7 @@
     box-shadow:0 4px 14px rgba(0,0,0,.5)}
   .topbar .tag{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-weight:600}
   .topbar .btn-sm{min-height:24px;padding:0 10px;font-size:11px}
-  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:minmax(100px,1fr) 1.2fr;gap:6px;padding:8px;
+  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.8fr 1fr;grid-template-rows:minmax(100px,1fr) 1.2fr;gap:6px;padding:8px;
     background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.06),rgba(0,0,0,.16) 75%);
     border:1px solid var(--line);border-radius:18px}
   .gseat{background:transparent;border:none;border-radius:10px;
@@ -97,7 +97,7 @@
   .gseat .name{font-size:12px;font-weight:700;white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
   .gseat .cnt{font-size:11px;color:#fff;background:rgba(255,255,255,.14);padding:1px 7px;border-radius:10px}
   .gseat .rk{font-size:11px;color:var(--gold);font-weight:800;background:rgba(251,191,36,.15);padding:1px 7px;border-radius:10px}
-  .gseat .last{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:46px;justify-content:center}
+  .gseat .last{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:48px;justify-content:center}
   .gseat .last .cards{display:flex;gap:2px;justify-content:center}
   .gseat .last .ph,.gseat .last .passTag{font-size:11px;color:var(--dim)}
   .passTag{font-size:11px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:5px;padding:2px 9px}
@@ -121,13 +121,13 @@
   #status{font-weight:800;font-size:15px;color:var(--gold);text-align:center;min-height:22px;text-shadow:0 2px 5px rgba(0,0,0,.5)}
   #passLine{font-size:12px;color:#a8c3d8;min-height:18px;text-align:center;line-height:1.4}
   #passLine b{color:#fde68a;font-weight:700}
-  #tableZone{display:flex;gap:0;align-items:center;justify-content:center;min-height:80px;padding:3px}
+  #tableZone{display:flex;gap:0;align-items:center;justify-content:center;min-height:88px;padding:3px}
   #tableZone .empty{color:var(--dim);font-size:13px}
-  #tableZone .card{width:48px;height:68px;margin-left:-30px}
+  #tableZone .card{width:52px;height:72px;margin-left:-30px}
   #tableZone .card:first-child{margin-left:0}
-  #tableZone .card .corner .crank{font-size:17px}
-  #tableZone .card .corner .csuit{font-size:11px}
-  #tableZone .card .pip{font-size:30px}
+  #tableZone .card .corner .crank{font-size:18px}
+  #tableZone .card .corner .csuit{font-size:12px}
+  #tableZone .card .pip{font-size:32px}
 
   /* ===== 手牌区 ===== */
   .handpanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px 10px 10px}
@@ -135,7 +135,7 @@
   .fan{display:flex;align-items:flex-end;overflow-x:auto;gap:0;padding:14px 6px 6px;min-height:104px;scrollbar-width:thin}
   .fan .card{cursor:pointer;transition:transform .13s,box-shadow .13s;position:relative;margin-left:-46px;flex-shrink:0}
   .fan .card:first-child{margin-left:0}
-  .fan .card.sel{transform:translateY(-18px);box-shadow:0 10px 18px rgba(251,191,36,.5);z-index:6;outline:3px solid var(--gold)}
+  .fan .card.sel{transform:translateY(-18px);box-shadow:0 10px 18px rgba(251,191,36,.5);outline:3px solid var(--gold)}
   .actions{display:flex;gap:6px;justify-content:center;margin:2px 0 0}
   .actions button{flex:0 0 auto;min-height:28px;font-size:12px;padding:0 14px;border-radius:8px}
   .actions button.hot{filter:brightness(1.14);box-shadow:0 0 0 2px var(--gold),0 2px 0 #047857;transform:scale(1.03)}
@@ -192,9 +192,9 @@
     .card .corner .csuit{font-size:9px}
     .card .pip{font-size:26px}
     .card.joker .pip{font-size:14px}
-    .mini-card{height:24px;min-width:16px;padding:0 3px;gap:0}
-    .mini-card span{font-size:10px}
-    .mini-card .ms{font-size:7px}
+    .mini-card{height:26px;min-width:17px;padding:0 3px;gap:0}
+    .mini-card span{font-size:11px}
+    .mini-card .ms{font-size:8px}
   }
 
   /* ===== 手机横屏紧凑（主场景） ===== */
@@ -210,8 +210,8 @@
     .fan{min-height:72px;padding:6px 4px 4px}
     .fan .card{width:50px;height:66px;border-radius:7px;margin-left:-30px}
     .fan .card.sel{transform:translateY(-12px)}
-    #tableZone{min-height:56px}
-    #tableZone .card{width:36px;height:51px;margin-left:-20px}
+    #tableZone{min-height:60px}
+    #tableZone .card{width:40px;height:56px;margin-left:-20px}
     .board{grid-template-rows:minmax(88px,1fr) 1.15fr}
     .mylast{font-size:11px;padding:1px 6px;gap:3px}
     .mylast .mini-card{height:26px;min-width:17px;padding:0 2px}
@@ -225,17 +225,17 @@
     .gseat .avatar{width:22px;height:22px;font-size:11px}
     .gseat .name{font-size:10px;max-width:52px}
     .gseat .cnt{font-size:10px;padding:0 5px}
-    .gseat .last{min-height:30px;gap:1px}
-    .mini-card{height:28px;min-width:20px;padding:0 4px;gap:0}
-    .mini-card span{font-size:11px}
-    .mini-card .ms{font-size:8px}
+    .gseat .last{min-height:34px;gap:1px}
+    .mini-card{height:32px;min-width:22px;padding:0 4px;gap:0}
+    .mini-card span{font-size:12px}
+    .mini-card .ms{font-size:9px}
     .fan .card .corner .crank{font-size:15px}
     .fan .card .corner .csuit{font-size:10px}
     .fan .card .pip{font-size:27px}
     .fan .card.joker .pip{font-size:13px}
-    #tableZone .card .corner .crank{font-size:13px}
-    #tableZone .card .corner .csuit{font-size:9px}
-    #tableZone .card .pip{font-size:22px}
+    #tableZone .card .corner .crank{font-size:14px}
+    #tableZone .card .corner .csuit{font-size:10px}
+    #tableZone .card .pip{font-size:24px}
     .gseat .last .ph,.gseat .last .passTag{font-size:10px}
     .passTag{padding:1px 6px}
     .oldtag{font-size:8px}
@@ -536,7 +536,8 @@ function initDragSelect(){
     const lo=Math.min(i0,i1),hi=Math.max(i0,i1);
     for(let i=lo;i<=hi;i++){
       const id=cards[i].dataset.id;
-      if(!selected.has(id)){selected.add(id);cards[i].classList.add("sel");}
+      if(selected.has(id)){selected.delete(id);cards[i].classList.remove("sel");}
+      else{selected.add(id);cards[i].classList.add("sel");}
     }
     $("selCount").textContent="已选 "+selected.size+" 张";
   });
