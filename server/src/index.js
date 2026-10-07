@@ -147,7 +147,7 @@ const server = http.createServer(async (req, res) => {
     const MIME = { '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
     try {
       const data = await fs.readFile(file);
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
       res.end(data);
     } catch {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });

@@ -362,11 +362,13 @@ function setHint(t){const h=$("loginHint");if(h)h.textContent=t;}
 function seatGridCell(s){const off=(s-mySeat+6)%6;if(off===0)return"cself";if(off===1)return"c3r2";if(off===2)return"c3r1";if(off===3)return"c2r1";if(off===4)return"c1r1";return"c1r2";}
 function renderSeats(){
   const board=$("board"),center=$("center");
-  [...board.children].forEach(ch=>{if(ch!==center)ch.remove();});
+  // 增量更新：座位 DOM 按 seat 复用，避免每次动作全量重建（减少闪烁与图片重载）
   for(let s=0;s<6;s++){
     const p=players[s];
-    const d=document.createElement("div");
-    d.className="gseat "+seatGridCell(s)+(s===mySeat?" me":"")+(currentTurn===s&&gameState!=="round_over"?" cur":"")+(p.rank>0?" done":"");
+    let d=board.querySelector('.gseat[data-seat="'+s+'"]');
+    const cls="gseat "+seatGridCell(s)+(s===mySeat?" me":"")+(currentTurn===s&&gameState!=="round_over"?" cur":"")+(p.rank>0?" done":"");
+    if(!d){d=document.createElement("div");d.dataset.seat=s;board.appendChild(d);}
+    d.className=cls;
     const nm=s===mySeat?"我":(p.name||"空");
     const cnt=p.rank>0?`<span class="rk">第${p.rank}名</span>`:(p.name?`<span class="cnt">${p.cardCount}</span>`:"<span class='cnt'>空</span>");
     const arrow=currentTurn===s?"▼":"";
@@ -382,8 +384,9 @@ function renderSeats(){
       }else{body=`<div class="last"><span class="ph">—</span></div>`;}
     }else{body=`<div class="last"><span class="ph">等待加入</span></div>`;}
     d.innerHTML=`<div class="arrow">${arrow}</div><div class="avatar">${avatarChar(s)}</div><div class="meta"><span class="name">${nm}</span>${cnt}</div>${body}`;
-    board.appendChild(d);
   }
+  // 清理可能遗留的多余座位节点
+  [...board.children].forEach(ch=>{if(ch!==center&&!ch.dataset.seat)ch.remove();});
 }
 function renderRoomSeats(){
   const wrap=$("roomSeats");wrap.innerHTML="";
