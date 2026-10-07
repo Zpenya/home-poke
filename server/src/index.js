@@ -13,6 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_FILE = process.env.WEB_FILE || path.join(__dirname, '..', 'web', 'index.html');
 const rooms = new Map(); // code -> Room
 const tokenIndex = new Map(); // token -> { code, seat }
+const onlineUsers = new Set(); // 在线玩家昵称（登录即加入，断开即移除）
 const PORT = process.env.PORT || 8080;
 
 function genRoomCode() {
@@ -36,8 +37,13 @@ async function handle(ws, msg) {
       const user = await db.login(name, msg.password);
       if (!user) return reply(ws, { type: 'login_fail', message: '密码不正确' });
       ws._userName = user.name;
+      onlineUsers.add(user.name);
       const stats = await db.playerStats(user.name);
       reply(ws, { type: 'login_ok', name: user.name, stats });
+      break;
+    }
+    case 'get_online': {
+      reply(ws, { type: 'online', list: [...onlineUsers] });
       break;
     }
     case 'get_stats': {
@@ -137,6 +143,7 @@ wss.on('connection', (ws) => {
     try { await handle(ws, msg); } catch (e) { console.error('handle error:', e); replyError(ws, '服务器内部错误'); }
   });
   ws.on('close', () => {
+    if (ws._userName) onlineUsers.delete(ws._userName);
     if (ws._room && ws._seat >= 0) ws._room.disconnect(ws._seat);
   });
 });

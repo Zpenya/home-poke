@@ -174,20 +174,33 @@
     <div class="logo">♠ ♦ ♥ ♣</div>
     <h2>六人争上游</h2>
     <div class="sub">两副牌 · 6 人 · 个人战 · 进贡回贡</div>
-    <div class="field"><input id="nameInput" placeholder="昵称（账号）"></div>
-    <div class="field"><input id="passInput" type="password" placeholder="密码（首次登录即注册）"></div>
-    <div class="row2">
-      <button class="btn-g" onclick="doLogin()">登录</button>
-      <button class="btn-b" onclick="doStats()">战绩 & 排名</button>
+
+    <!-- 未登录：登录表单 -->
+    <div id="loginBox">
+      <div class="field"><input id="nameInput" placeholder="昵称（账号）"></div>
+      <div class="field"><input id="passInput" type="password" placeholder="密码（首次登录即注册）"></div>
+      <div class="row2">
+        <button class="btn-g" onclick="doLogin()">登录</button>
+        <button class="btn-b" onclick="doStats()">战绩 & 排名</button>
+      </div>
     </div>
-    <div id="roomOps" style="display:none;margin-top:14px">
+
+    <!-- 已登录：用户状态 + 在线玩家 + 房间操作 -->
+    <div id="afterBox" style="display:none">
+      <div id="myCard" style="font-weight:800;color:var(--gold);margin-bottom:8px"></div>
+      <div id="onlineBox" style="font-size:13px;color:var(--sub);margin-bottom:12px;text-align:left;line-height:1.7"></div>
       <div class="row2">
         <button class="btn-g" onclick="doCreate()">创建房间</button>
         <button class="btn-b" onclick="doJoin()">加入房间</button>
       </div>
-      <div class="field" style="margin-top:10px"><input id="codeInput" placeholder="输入 6 位房号"></div>
+      <div class="field" style="margin-top:10px"><input id="codeInput" placeholder="输入 6 位房号加入"></div>
+      <div class="row2">
+        <button class="btn-gy" onclick="showStatModal('stats')">战绩 & 排名</button>
+        <button class="btn-gy" onclick="doLogout()">切换账号</button>
+      </div>
     </div>
-    <div class="hint" id="loginHint">登录后即可创建或加入房间，战绩自动统计。快捷键：回车=出牌、空格=不要、H=提示、R=战绩&记录。推荐横屏游玩。</div>
+
+    <div class="hint" id="loginHint">推荐横屏游玩。创建房间会生成 6 位房号，家人点「加入房间」输入即可一起玩，战绩自动统计。快捷键：回车=出牌、空格=不要、H=提示。</div>
   </div>
 
   <!-- ===== 房间 ===== -->
@@ -412,6 +425,20 @@ async function doLogin(){
   send({type:"login",name,password:$("passInput").value||""});
   setHint("正在登录…");
 }
+function doLogout(){loggedIn=false;localStorage.removeItem("poker_token");showLogin();setHint("已切换账号，可重新登录");}
+function showAfter(){
+  $("loginBox").style.display="none";
+  $("afterBox").style.display="block";
+  const s=myStats;const wr=s&&s.games?Math.round(s.wins/s.games*100):0;
+  $("myCard").textContent="已登录："+userName+(s?(" · "+s.games+" 局 / 胜 "+s.wins+" / 胜率 "+wr+"%"):"（新账号）");
+}
+function showLogin(){$("loginBox").style.display="block";$("afterBox").style.display="none";}
+function renderOnline(list){
+  const box=$("onlineBox");
+  if(!list||!list.length){box.innerHTML="在线玩家：暂无其他人在线";return;}
+  box.innerHTML="在线玩家："+list.map(n=>n===userName?`<b style="color:var(--gold)">${n}（我）</b>`:n).join("、");
+}
+
 async function doCreate(){if(!loggedIn){setHint("请先登录账号");return;}try{await connect();}catch(err){setHint(err.message);return;}send({type:"create_room",name:userName});}
 async function doJoin(){
   if(!loggedIn){setHint("请先登录账号");return;}
@@ -521,13 +548,15 @@ function handle(m){
   switch(m.type){
     case "login_ok":{
       loggedIn=true;userName=m.name;myStats=m.stats;
-      $("roomOps").style.display="block";
-      setHint("欢迎，"+userName+"（已登录）");
+      showAfter();
+      send({type:"get_online"});send({type:"get_ranking"});send({type:"get_history"});
+      setHint("");
       break;}
     case "login_fail":{setHint("登录失败："+(m.message||"密码不正确"));break;}
     case "stats":{myStats=m.stats;break;}
     case "ranking":{rankList=m.list;break;}
     case "history":{historyList=m.list;break;}
+    case "online":{renderOnline(m.list);break;}
     case "room_created":case "room_joined":{
       mySeat=m.seat;token=m.token;roomCode=m.code;
       localStorage.setItem("poker_token",token);
