@@ -51,6 +51,11 @@ async function handle(ws, msg) {
       reply(ws, { type: 'ranking', list });
       break;
     }
+    case 'get_history': {
+      const list = await db.listGames(30);
+      reply(ws, { type: 'history', list });
+      break;
+    }
     case 'create_room': {
       const code = genRoomCode();
       const room = new Room(code, db);

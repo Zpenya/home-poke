@@ -22,7 +22,17 @@ export class Room {
       if (!p || p.isBot || !p.name) continue;
       results.push({ name: p.name, rank: finishRanks[s] });
     }
-    if (results.length) this.db.recordRound(results);
+    if (!results.length) return;
+    // 进贡摘要（本局末游→头游的进贡牌）：round_over 时 game.tribute 仍保留
+    let tribute = "";
+    const tr = this.game.tribute;
+    if (tr && tr.card) {
+      const from = this.players[tr.from]?.name || "";
+      const to = this.players[tr.to]?.name || "";
+      const rk = tr.card.rank <= 10 ? String(tr.card.rank) : ({ 11: "J", 12: "Q", 13: "K", 14: "A", 15: "2", 16: "小王", 17: "大王" }[tr.card.rank]);
+      tribute = `${from} 进贡给 ${to}：${rk}`;
+    }
+    this.db.recordRound(results, this.game.round, tribute);
   }
 
   occupied() {

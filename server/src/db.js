@@ -61,11 +61,11 @@ class FileStore {
     return user;
   }
 
-  // 一局结束：记录名次，累加各玩家统计
-  async recordRound(results) {
+  // 一局结束：记录名次（含局号/进贡摘要），累加各玩家统计
+  async recordRound(results, roundNo, tribute) {
     await this._ready;
     if (!Array.isArray(results) || !results.length) return;
-    this.games.push({ id: this.games.length + 1, time: Date.now(), results });
+    this.games.push({ id: this.games.length + 1, time: Date.now(), round: roundNo || 0, results, tribute: tribute || "" });
     if (this.games.length > 5000) this.games = this.games.slice(-5000);
     for (const { name, rank } of results) {
       const u = this.users.get(String(name));
@@ -75,6 +75,14 @@ class FileStore {
       if (rank === 1) u.stats.wins += 1;
     }
     await this._persist();
+  }
+
+  // 历史对局：返回最新若干局（供前端"历史对局"页展示）
+  async listGames(limit = 30) {
+    await this._ready;
+    return this.games.slice(-limit).reverse().map((g) => ({
+      id: g.id, round: g.round, time: g.time, tribute: g.tribute || "", results: g.results,
+    }));
   }
 
   async playerStats(name) {
