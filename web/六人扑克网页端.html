@@ -298,16 +298,16 @@ function renderSeats(){
     const arrow=currentTurn===s?"▼":"";
     const isThisTrick=p.trickSeq===trickSeq&&trickSeq>0;
     const didPass=p.name&&passSeats.has(s);
-    // 有名字就始终显示最近出的牌（出完最后一手也显示），不因 rank 隐藏
+    // 本轮 Pass 的人：座位清掉之前的牌，只显示"不出"，避免歧义
     let body="";
     if(p.name){
-      if(p.last&&p.last.length){
+      if(didPass){body=`<div class="last"><span class="passTag">不出</span></div>`;}
+      else if(p.last&&p.last.length){
         const cards=p.last.map(miniCardHTML).join("");
         body=isThisTrick
           ?`<div class="last"><div class="cards">${cards}</div></div>`
           :`<div class="last"><div class="oldtag">上轮</div><div class="cards" style="opacity:.45">${cards}</div></div>`;
-      }else if(didPass){body=`<div class="last"><span class="passTag">不要</span></div>`;}
-      else{body=`<div class="last"><span class="ph">—</span></div>`;}
+      }else{body=`<div class="last"><span class="ph">—</span></div>`;}
     }
     d.innerHTML=`<div class="arrow">${arrow}</div>
       <div class="avatar">${avatarChar(s)}</div>
@@ -346,7 +346,7 @@ function renderHand(){
 function renderPassLine(){
   const el=$("passLine");
   if(!passSeats.size){el.innerHTML="";return;}
-  el.innerHTML=[...passSeats].map(s=>`<b>${seatName(s)}</b> 不要`).join("　");
+  el.innerHTML=[...passSeats].map(s=>`<b>${seatName(s)}</b> 不出`).join("　");
 }
 function renderTable(){
   const wrap=$("tableZone"); wrap.innerHTML="";
@@ -528,7 +528,7 @@ function handle(m){
     }
     case "passed":{
       passSeats.add(m.seat); renderPassLine(); syncUI();
-      appendLog(seatName(m.seat)+" 不要");
+      appendLog(seatName(m.seat)+" 不出");
       break;
     }
     case "player_finished":{
