@@ -116,11 +116,12 @@
   /* ===== 手牌区 ===== */
   .handpanel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px 10px 10px}
   .handbar{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);padding:0 4px 6px}
-  .fan{display:flex;align-items:flex-end;overflow-x:auto;gap:4px;padding:10px 4px 6px;min-height:96px;scrollbar-width:thin}
-  .fan .card{cursor:pointer;transition:transform .13s,box-shadow .13s;position:relative}
-  .fan .card.sel{transform:translateY(-16px);box-shadow:0 10px 18px rgba(251,191,36,.5);z-index:6;outline:3px solid var(--gold)}
-  .actions{display:flex;gap:10px;margin-top:8px}
-  .actions button{flex:1;min-height:48px;font-size:16px}
+  .fan{display:flex;align-items:flex-end;overflow-x:auto;gap:0;padding:14px 6px 6px;min-height:104px;scrollbar-width:thin}
+  .fan .card{cursor:pointer;transition:transform .13s,box-shadow .13s;position:relative;margin-left:-46px;flex-shrink:0}
+  .fan .card:first-child{margin-left:0}
+  .fan .card.sel{transform:translateY(-18px);box-shadow:0 10px 18px rgba(251,191,36,.5);z-index:6;outline:3px solid var(--gold)}
+  .actions{display:flex;gap:8px;justify-content:center;margin-bottom:6px}
+  .actions button{flex:0 0 auto;min-height:34px;font-size:14px;padding:0 18px;border-radius:10px}
   .actions button.hot{filter:brightness(1.14);box-shadow:0 0 0 3px var(--gold),0 3px 0 #047857;transform:scale(1.03)}
 
   /* ===== 折叠：记牌器+记录 ===== */
@@ -172,7 +173,7 @@
     #tableZone .card{width:40px;height:58px}
     .card{width:40px;height:58px}
     .gseat .last .cards .card{width:22px;height:32px}
-    .fan .card{width:40px;height:58px}
+    .fan .card{width:40px;height:58px;margin-left:-24px}
   }
 </style>
 </head>
@@ -243,12 +244,12 @@
 
     <div class="handpanel">
       <div class="handbar"><span>我的手牌（<span id="handCount">0</span> 张）</span><span id="selCount">已选 0 张</span></div>
-      <div class="fan" id="handArea"></div>
       <div class="actions">
         <button class="btn-g" id="btnPlay" onclick="doPlay()">出牌</button>
         <button class="btn-gy" id="btnPass" onclick="doPass()">不要</button>
         <button class="btn-b" id="btnHint" onclick="doHint()">提示</button>
       </div>
+      <div class="fan" id="handArea"></div>
     </div>
 
     <div class="lower" id="lower">
