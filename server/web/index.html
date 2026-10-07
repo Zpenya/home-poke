@@ -49,6 +49,9 @@
   .card.mini .corner{left:3px;top:2px}
   .card.mini .crank{font-size:13px}
   .card.mini .csuit{font-size:7px}
+  /* SVG 牌面 */
+  .card .cimg{width:100%;height:100%;display:block;object-fit:fill;border-radius:7px}
+  .mini-card{height:44px;width:auto;border-radius:5px;box-shadow:0 2px 4px rgba(0,0,0,.4);display:block;pointer-events:none}
 
   /* ===== 登录 / 大厅 ===== */
   #connView{max-width:480px;margin:auto;width:100%;text-align:center;padding:26px 20px}
@@ -286,17 +289,31 @@ function cardText(c){return c?((c.suit===4?RL(c.rank):RL(c.rank)+SS(c.suit))):""
 function seatName(s){return players[s]?(s===mySeat?"我":(players[s].name||"空")):"空";}
 function avatarChar(s){return s===mySeat?"我":(players[s].name||"空").charAt(0);}
 
+/* ===== 音效（Web Audio 合成，无外部素材） ===== */
+let AC=null;
+function aCtx(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==="suspended")AC.resume();return AC;}
+function tone(freq,type,dur,vol,delay=0){const c=aCtx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;const t=c.currentTime+delay;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur);}
+function snap(dur,vol,freq,delay=0){const c=aCtx();if(!c)return;const len=Math.floor(c.sampleRate*dur);const buf=c.createBuffer(1,len,c.sampleRate);const d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,1.2);const n=c.createBufferSource();n.buffer=buf;const f=c.createBiquadFilter();f.type="bandpass";f.frequency.value=freq;f.Q.value=1;const g=c.createGain();g.gain.setValueAtTime(vol,c.currentTime+delay);g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+delay+dur);n.connect(f);f.connect(g);g.connect(c.destination);n.start(c.currentTime+delay);n.stop(c.currentTime+delay+dur);}
+function playCardSound(){snap(0.09,0.5,1500);tone(230,"triangle",0.05,0.16,0.005);}
+function passSound(){tone(320,"sine",0.16,0.22);}
+function bombSound(){snap(0.5,0.65,280);tone(60,"sawtooth",0.35,0.5);tone(45,"square",0.4,0.32,0.02);}
+function isBomb(cards){if(!cards||cards.length<2)return false;if(cards.length===2&&cards.some(c=>c.rank===16)&&cards.some(c=>c.rank===17))return true;if(cards.length===4&&cards.every(c=>c.rank===cards[0].rank))return true;return false;}
+
+function cardFile(c){
+  if(c.rank===17)return "assets/cards/red_joker.svg";
+  if(c.rank===16)return "assets/cards/black_joker.svg";
+  const R={3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'T',11:'J',12:'Q',13:'K',14:'A',15:'2'};
+  const S=['s','h','c','d'];
+  return "assets/cards/"+R[c.rank]+S[c.suit]+".svg";
+}
 function cardEl(c){
   const d=document.createElement("div");d.className="card"+(RD(c)?" red":"");
   d.dataset.id=c.id;
-  if(c.suit===4){d.classList.add("joker");d.innerHTML=`<span class="pip">${RL(c.rank)}</span>`;}
-  else{const r=RL(c.rank),s=SS(c.suit);
-    d.innerHTML=`<span class="corner"><span class="crank">${r}</span><span class="csuit">${s}</span></span><span class="pip">${s}</span>`;}
+  d.innerHTML=`<img class="cimg" src="${cardFile(c)}" alt="" draggable="false">`;
   return d;
 }
 function miniCardHTML(c){
-  const r=RL(c.rank),s=c.suit===4?"":SS(c.suit),cls=c.suit===4?'card mini joker':'card mini'+(RD(c)?" red":"");
-  return `<div class="${cls}"><span class="corner"><span class="crank">${r}</span><span class="csuit">${s}</span></span></div>`;
+  return `<img class="mini-card" src="${cardFile(c)}" alt="">`;
 }
 function appendLog(t,cls){const l=$("log"),line=document.createElement("div");line.innerHTML=t;if(cls)line.className=cls;l.appendChild(line);l.scrollTop=l.scrollHeight;}
 function setStatus(t){const s=$("status");if(s)s.textContent=t;}
@@ -597,9 +614,10 @@ function handle(m){
       if(s===mySeat){const ids=new Set(m.cards.map(c=>c.id));hand=hand.filter(c=>!ids.has(c.id));selected.clear();renderHand();}
       players[s].cardCount=Math.max(0,players[s].cardCount-m.cards.length);
       renderTable();renderPassLine();renderRecorder();syncUI();
+      try{if(isBomb(m.cards))bombSound();else playCardSound();}catch(e){}
       appendLog((s===mySeat?"<span class='me'>我</span>":"<b>"+seatName(s)+"</b>")+" 出牌（"+m.cards.length+" 张）","act");
       break;}
-    case "passed":{passSeats.add(m.seat);renderPassLine();syncUI();appendLog(seatName(m.seat)+" 不出");break;}
+    case "passed":{passSeats.add(m.seat);renderPassLine();syncUI();try{passSound();}catch(e){}appendLog(seatName(m.seat)+" 不出");break;}
     case "player_finished":{players[m.seat].rank=m.rank;players[m.seat].cardCount=0;syncUI();appendLog(seatName(m.seat)+" 获得第"+m.rank+"名");break;}
     case "hand_update":{hand=m.hand;selected.clear();renderHand();players[mySeat].cardCount=hand.length;syncUI();break;}
     case "tribute_announce":{appendLog("进入进贡环节");break;}

@@ -128,9 +128,10 @@ async function handle(ws, msg) {
   }
 }
 
-// 同一端口：HTTP 托管网页（GET / 返回 index.html），WebSocket 复用同一 server
+// 同一端口：HTTP 托管网页（GET / 返回 index.html）与静态资源（/assets/*），WebSocket 复用同一 server
 const server = http.createServer(async (req, res) => {
-  if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
+  const url = req.url.split('?')[0];
+  if (req.method === 'GET' && (url === '/' || url === '/index.html')) {
     try {
       const html = await fs.readFile(WEB_FILE, 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -138,6 +139,19 @@ const server = http.createServer(async (req, res) => {
     } catch {
       res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('网页文件不存在：' + WEB_FILE);
+    }
+  } else if (req.method === 'GET' && url.startsWith('/assets/')) {
+    const base = path.dirname(WEB_FILE);
+    const file = path.join(base, url.replace(/^\/+/, ''));
+    if (!file.startsWith(base + path.sep)) { res.writeHead(403); res.end('Forbidden'); return; }
+    const MIME = { '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.json': 'application/json' };
+    try {
+      const data = await fs.readFile(file);
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+      res.end(data);
+    } catch {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not Found');
     }
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
