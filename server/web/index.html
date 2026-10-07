@@ -198,6 +198,8 @@
     .mini-card{height:26px;min-width:17px;padding:0 3px;gap:0}
     .mini-card span{font-size:11px}
     .mini-card .ms{font-size:8px}
+    .actions{flex-wrap:wrap;gap:6px}
+    .actions button{min-height:32px;font-size:13px;padding:0 13px;flex:0 0 auto}
   }
 
   /* ===== 手机横屏紧凑（主场景） ===== */
@@ -481,10 +483,13 @@ function showView(v){
 }
 function renderMyLast(){
   const el=$("myLastRow");if(!el)return;
+  // “我出”与出牌操作按钮互斥：仅 playing 且轮到我时才显示 出牌/不要/提示，其余时候隐藏（托管常驻）
+  const showBtn=gameState==="playing"&&currentTurn===mySeat;
+  $("btnPlay").style.display=showBtn?"":"none";
+  $("btnPass").style.display=showBtn?"":"none";
+  $("btnHint").style.display=showBtn?"":"none";
   const p=players[mySeat];
-  if(!p||!p.name){el.style.display="none";el.innerHTML="";return;}
-  if(currentTurn===mySeat){el.style.display="none";el.innerHTML="";return;} // 轮到自己时不回显
-  if(myFreeTurn){el.style.display="none";el.innerHTML="";return;}
+  if(!p||!p.name||showBtn||gameState!=="playing"){el.style.display="none";el.innerHTML="";return;}
   if(myLastAction==="pass"||passSeats.has(mySeat)){el.style.display="flex";el.innerHTML=`<span class="myLabel">我出</span><span class="myPass">不出</span>`;return;}
   if(!p.last||!p.last.length){el.style.display="none";el.innerHTML="";return;}
   el.style.display="flex";
