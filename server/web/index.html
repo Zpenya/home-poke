@@ -57,12 +57,12 @@
   .card.mini .crank{font-size:13px}
   .card.mini .csuit{font-size:7px}
   /* 自建 CSS 牌面（无 SVG 图片，字体清晰锐利） */
-  .mini-card{height:46px;min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  .mini-card{height:50px;min-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
     background:linear-gradient(150deg,#fff 0%,#f0f3f7 70%,#e2e7ed 100%);border:1px solid #b8c2cf;border-radius:6px;
     font-weight:800;color:#1b1f24;box-shadow:0 2px 4px rgba(0,0,0,.4);padding:0 5px;pointer-events:none;font-family:Georgia,"Times New Roman",serif}
   .mini-card.red{color:var(--red)}
-  .mini-card span{font-size:16px;line-height:1}
-  .mini-card .ms{font-size:12px}
+  .mini-card span{font-size:17px;line-height:1}
+  .mini-card .ms{font-size:13px}
 
   /* ===== 登录 / 大厅 ===== */
   #connView{max-width:480px;margin:auto;width:100%;text-align:center;padding:26px 20px}
@@ -79,7 +79,7 @@
     box-shadow:0 4px 14px rgba(0,0,0,.5)}
   .topbar .tag{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-weight:600}
   .topbar .btn-sm{min-height:24px;padding:0 10px;font-size:11px}
-  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.8fr 1fr;grid-template-rows:minmax(100px,1fr) 1.2fr;gap:6px;padding:8px;
+  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:80px 1fr;gap:6px;padding:8px;
     background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.06),rgba(0,0,0,.16) 75%);
     border:1px solid var(--line);border-radius:18px}
   .gseat{background:transparent;border:none;border-radius:10px;
@@ -97,7 +97,7 @@
   .gseat .name{font-size:12px;font-weight:700;white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
   .gseat .cnt{font-size:11px;color:#fff;background:rgba(255,255,255,.14);padding:1px 7px;border-radius:10px}
   .gseat .rk{font-size:11px;color:var(--gold);font-weight:800;background:rgba(251,191,36,.15);padding:1px 7px;border-radius:10px}
-  .gseat .last{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:48px;justify-content:center}
+  .gseat .last{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:52px;justify-content:center}
   .gseat .last .cards{display:flex;gap:2px;justify-content:center}
   .gseat .last .ph,.gseat .last .passTag{font-size:11px;color:var(--dim)}
   .passTag{font-size:11px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:5px;padding:2px 9px}
@@ -111,9 +111,12 @@
   .mylast .mini-card span{font-size:12px}
   .mylast .mini-card .ms{font-size:8px}
 
-  /* 座位环形位置 */
+  /* 座位环形位置：上排靠顶、左右座位内容往屏幕两侧靠 */
   .c1r1{grid-column:1;grid-row:1}.c2r1{grid-column:2;grid-row:1}.c3r1{grid-column:3;grid-row:1}
   .c1r2{grid-column:1;grid-row:2}.c3r2{grid-column:3;grid-row:2}
+  .c1r1,.c2r1,.c3r1{justify-content:flex-start}
+  .c1r2{align-items:flex-start}
+  .c3r2{align-items:flex-end}
   .cself{display:none}
 
   /* 中央出牌区 */
@@ -212,7 +215,7 @@
     .fan .card.sel{transform:translateY(-12px)}
     #tableZone{min-height:60px}
     #tableZone .card{width:40px;height:56px;margin-left:-20px}
-    .board{grid-template-rows:minmax(88px,1fr) 1.15fr}
+    .board{grid-template-rows:64px 1fr}
     .mylast{font-size:11px;padding:1px 6px;gap:3px}
     .mylast .mini-card{height:26px;min-width:17px;padding:0 2px}
     .mylast .mini-card span{font-size:10px}
@@ -225,10 +228,10 @@
     .gseat .avatar{width:22px;height:22px;font-size:11px}
     .gseat .name{font-size:10px;max-width:52px}
     .gseat .cnt{font-size:10px;padding:0 5px}
-    .gseat .last{min-height:34px;gap:1px}
-    .mini-card{height:32px;min-width:22px;padding:0 4px;gap:0}
-    .mini-card span{font-size:12px}
-    .mini-card .ms{font-size:9px}
+    .gseat .last{min-height:36px;gap:1px}
+    .mini-card{height:34px;min-width:23px;padding:0 4px;gap:0}
+    .mini-card span{font-size:13px}
+    .mini-card .ms{font-size:10px}
     .fan .card .corner .crank{font-size:15px}
     .fan .card .corner .csuit{font-size:10px}
     .fan .card .pip{font-size:27px}
