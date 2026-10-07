@@ -175,6 +175,37 @@
     .gseat .last .cards .card{width:22px;height:32px}
     .fan .card{width:40px;height:58px;margin-left:-24px}
   }
+
+  /* ===== 手机横屏紧凑（主场景） ===== */
+  @media (orientation:landscape) and (max-height:520px){
+    .wrap{padding:3px;gap:4px}
+    #gameView{gap:4px}
+    .topbar .tag{font-size:11px;padding:2px 10px}
+    .topbar .btn-sm{min-height:24px;padding:0 10px;font-size:11px}
+    .handpanel{padding:5px 8px 8px}
+    .handbar{font-size:11px;padding:0 4px 4px}
+    .actions{margin-bottom:3px}
+    .actions button{min-height:24px;font-size:12px;padding:0 12px;border-radius:7px}
+    .fan{min-height:80px;padding:10px 4px 4px}
+    .fan .card{width:50px;height:70px;border-radius:7px;margin-left:-30px}
+    .fan .card.sel{transform:translateY(-12px)}
+    #tableZone{min-height:56px}
+    #tableZone .card{width:36px;height:51px}
+    .center{gap:3px;padding:3px}
+    #status{font-size:13px;min-height:18px}
+    #passLine{font-size:11px;min-height:16px}
+    .gseat{padding:3px 4px;gap:2px}
+    .gseat .avatar{width:22px;height:22px;font-size:11px}
+    .gseat .name{font-size:10px;max-width:52px}
+    .gseat .cnt{font-size:10px;padding:0 5px}
+    .gseat .last{min-height:30px;gap:1px}
+    .mini-card{height:26px}
+    .gseat .last .ph,.gseat .last .passTag{font-size:10px}
+    .passTag{padding:1px 6px}
+    .oldtag{font-size:8px}
+    .cself{flex-direction:row;justify-content:center;gap:8px}
+    .cself .last{flex-direction:row;min-height:0}
+  }
 </style>
 </head>
 <body>
