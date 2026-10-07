@@ -108,9 +108,10 @@
   #cdbar{width:70%;height:7px;background:rgba(255,255,255,.15);border-radius:5px;overflow:hidden;margin-top:1px;display:none}
   #cdfill{height:100%;width:0;background:linear-gradient(90deg,#fde68a,#f59e0b);border-radius:5px;transition:width .9s linear}
   #cdNum{font-size:11px;color:var(--sub)}
-  #tableZone{display:flex;gap:4px;align-items:center;justify-content:center;min-height:80px;flex-wrap:wrap;padding:3px}
+  #tableZone{display:flex;gap:0;align-items:center;justify-content:center;min-height:80px;padding:3px}
   #tableZone .empty{color:var(--dim);font-size:13px}
-  #tableZone .card{width:48px;height:68px}
+  #tableZone .card{width:48px;height:68px;margin-left:-30px}
+  #tableZone .card:first-child{margin-left:0}
   #tableZone .card .corner .crank{font-size:15px}
 
   /* ===== 手牌区 ===== */
@@ -170,7 +171,7 @@
   @media (orientation:portrait){
     .board{grid-template-columns:1fr 1fr 1fr}
     .cself{grid-column:1/4}
-    #tableZone .card{width:40px;height:58px}
+    #tableZone .card{width:40px;height:58px;margin-left:-24px}
     .card{width:40px;height:58px}
     .gseat .last .cards .card{width:22px;height:32px}
     .fan .card{width:40px;height:58px;margin-left:-24px}
@@ -190,7 +191,9 @@
     .fan .card{width:50px;height:70px;border-radius:7px;margin-left:-30px}
     .fan .card.sel{transform:translateY(-12px)}
     #tableZone{min-height:56px}
-    #tableZone .card{width:36px;height:51px}
+    #tableZone .card{width:36px;height:51px;margin-left:-20px}
+    .board{grid-template-rows:auto 1fr}
+    .cself{display:none}
     .center{gap:3px;padding:3px}
     #status{font-size:13px;min-height:18px}
     #passLine{font-size:11px;min-height:16px}
