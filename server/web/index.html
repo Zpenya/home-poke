@@ -74,9 +74,12 @@
   .row2 button{flex:1}
 
   /* ===== 牌桌 ===== */
-  .topbar{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub)}
-  .topbar .tag{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:20px;padding:4px 14px;font-weight:600}
-  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:auto 1fr auto;gap:6px;padding:8px;
+  .topbar{position:fixed;right:10px;bottom:10px;left:auto;top:auto;z-index:60;display:flex;gap:6px;align-items:center;
+    padding:5px 8px;background:rgba(9,23,38,.92);border:1px solid #1d3a55;border-radius:22px;font-size:12px;color:var(--sub);
+    box-shadow:0 4px 14px rgba(0,0,0,.5)}
+  .topbar .tag{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-weight:600}
+  .topbar .btn-sm{min-height:24px;padding:0 10px;font-size:11px}
+  .board{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:auto 1fr;gap:6px;padding:8px;
     background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.06),rgba(0,0,0,.16) 75%);
     border:1px solid var(--line);border-radius:18px}
   .gseat{background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.16);border-radius:13px;
@@ -99,10 +102,18 @@
   .passTag{font-size:11px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:5px;padding:2px 9px}
   .oldtag{font-size:9px;color:#9fb3c5;background:rgba(0,0,0,.4);border-radius:3px;padding:0 4px;line-height:1.4}
 
+  /* 自己的出牌：手牌上方一行小显示（替代原自座椅位） */
+  .mylast{display:none;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--gold);padding:2px 0;min-height:0}
+  .mylast .myLabel{font-weight:800}
+  .mylast .myPass{font-size:11px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:5px;padding:1px 8px}
+  .mylast .mini-card{height:32px;min-width:20px;padding:0 3px}
+  .mylast .mini-card span{font-size:12px}
+  .mylast .mini-card .ms{font-size:8px}
+
   /* 座位环形位置 */
   .c1r1{grid-column:1;grid-row:1}.c2r1{grid-column:2;grid-row:1}.c3r1{grid-column:3;grid-row:1}
   .c1r2{grid-column:1;grid-row:2}.c3r2{grid-column:3;grid-row:2}
-  .cself{grid-column:1/4;grid-row:3}
+  .cself{display:none}
 
   /* 中央出牌区 */
   .center{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:6px;min-height:0;overflow:hidden}
@@ -222,9 +233,9 @@
     .fan .card .corner .csuit{font-size:10px}
     .fan .card .pip{font-size:27px}
     .fan .card.joker .pip{font-size:13px}
-    #tableZone .card .corner .crank{font-size:15px}
-    #tableZone .card .corner .csuit{font-size:10px}
-    #tableZone .card .pip{font-size:28px}
+    #tableZone .card .corner .crank{font-size:13px}
+    #tableZone .card .corner .csuit{font-size:9px}
+    #tableZone .card .pip{font-size:22px}
     .gseat .last .ph,.gseat .last .passTag{font-size:10px}
     .passTag{padding:1px 6px}
     .oldtag{font-size:8px}
@@ -286,6 +297,7 @@
         <button class="btn-gy btn-sm" onclick="toggleFull()">⛶ 全屏</button>
         <button class="btn-gy btn-sm" onclick="toggleLower()">记录</button>
         <button class="btn-gy btn-sm" onclick="showStatModal('stats')">战绩 & 排名</button>
+        <button class="btn-gy btn-sm" id="btnRestart" onclick="doRestart()" style="display:none">重开</button>
       </span>
     </div>
 
@@ -299,6 +311,7 @@
     </div>
 
     <div class="handpanel">
+      <div id="myLastRow" class="mylast"></div>
       <div class="handbar"><span>我的手牌（<span id="handCount">0</span> 张）</span><span id="selCount">已选 0 张</span></div>
       <div class="actions">
         <button class="btn-g" id="btnPlay" onclick="doPlay()">出牌</button>
@@ -412,7 +425,7 @@ function renderSeats(){
           :`<div class="last"><div class="cards" style="opacity:.42">${cards}</div><span class="oldtag">上轮</span></div>`;
       }else{body=`<div class="last"><span class="ph">—</span></div>`;}
     }else{body=`<div class="last"><span class="ph">等待加入</span></div>`;}
-    d.innerHTML=`<div class="arrow">${arrow}</div><div class="avatar">${avatarChar(s)}</div><div class="meta"><span class="name">${nm}</span>${cnt}</div>${body}`;
+    d.innerHTML=`<div class="arrow">${arrow}</div><div class="meta"><span class="name">${nm}</span>${cnt}</div>${body}`;
   }
   // 清理可能遗留的多余座位节点
   [...board.children].forEach(ch=>{if(ch!==center&&!ch.dataset.seat)ch.remove();});
@@ -424,7 +437,7 @@ function renderRoomSeats(){
     d.style.minHeight="60px";d.style.gridColumn="auto";d.style.gridRow="auto";
     const nm=p.seat===mySeat?"我":(p.name||"空");
     const st=p.name?(p.isBot?"机器人":"在线"):"等待加入";
-    d.innerHTML=`<div class="avatar" style="width:32px;height:32px;font-size:13px">${avatarChar(p.seat)}</div><div class="meta"><span class="name">${nm}</span><span class="cnt">${st}</span></div>`;
+    d.innerHTML=`<div class="meta"><span class="name">${nm}</span><span class="cnt">${st}</span></div>`;
     wrap.appendChild(d);
   });
   $("startBtn").style.display=mySeat===hostSeat?"block":"none";
@@ -460,11 +473,22 @@ function showView(v){
   $("roomView").style.display=v==="room"?"block":"none";
   $("gameView").style.display=v==="game"?"flex":"none";
 }
+function renderMyLast(){
+  const el=$("myLastRow");if(!el)return;
+  const p=players[mySeat];
+  if(!p||!p.name){el.style.display="none";el.innerHTML="";return;}
+  if(passSeats.has(mySeat)){el.style.display="flex";el.innerHTML=`<span class="myLabel">我出</span><span class="myPass">不出</span>`;return;}
+  if(!p.last||!p.last.length){el.style.display="none";el.innerHTML="";return;}
+  el.style.display="flex";
+  el.innerHTML=`<span class="myLabel">我出</span>${p.last.map(miniCardHTML).join("")}`;
+}
 function syncUI(){
   const playing=gameState==="playing";
   $("btnPlay").disabled=!playing;$("btnPass").disabled=!playing;$("btnHint").disabled=!playing;
   $("btnPlay").classList.toggle("hot",currentTurn===mySeat);
   try{renderSeats();}catch(e){console.error("renderSeats:",e);}
+  renderMyLast();
+  const rb=$("btnRestart");if(rb)rb.style.display=(mySeat===hostSeat&&gameState!=="idle")?"inline-block":"none";
 }
 function toggleSel(id){
   if(gameState!=="playing")return;
@@ -593,6 +617,10 @@ function timeStr(ts){if(!ts)return "";const d=new Date(ts);return (d.getMonth()+
 function showRankingModal(){showStatModal("stats");}
 
 function startGame(){send({type:"start_game"});}
+function doRestart(){
+  if(!confirm("重新开始本局？将按首局规则重新洗牌发牌，当前对局作废。"))return;
+  send({type:"restart"});
+}
 function doPlay(){
   if(currentTurn!==mySeat){setStatus("还没轮到你出牌，请等待");return;}
   if(!selected.size){setStatus("请先点击要出的牌");return;}

@@ -113,6 +113,7 @@ async function handle(ws, msg) {
     }
     case 'start_game': ws._room?.startGame(ws._seat); break;
     case 'next_round': ws._room?.nextRound(ws._seat); break;
+    case 'restart': ws._room?.restartGame(ws._seat); break;
     case 'play': ws._room?.game.play(ws._seat, msg.cardIds); break;
     case 'pass': ws._room?.game.pass(ws._seat); break;
     case 'hint': ws._room?.game.hint(ws._seat); break;

@@ -61,6 +61,16 @@ export class Game {
     return deal(deck, SEATS).map((h) => sortHand(h));
   }
 
+  // 放弃当前对局，按首局规则重新开始（房主触发，异常兜底）
+  restart() {
+    this.round = 0;
+    this.lastRoundInfo = null;
+    this.tribute = null;
+    this.finishRanks = Array(SEATS).fill(0);
+    this.state = 'idle';
+    this.startRound();
+  }
+
   startRound() {
     this.round += 1;
     this.hands = this.dealNewRound();

@@ -144,4 +144,10 @@ export class Room {
     if (this.game.state !== 'round_over') return;
     this.game.startRound();
   }
+
+  // 房主主动重开本局：放弃当前对局，按首局规则重新发牌（异常兜底）
+  restartGame(seat) {
+    if (seat !== this.hostSeat) return;
+    this.game.restart();
+  }
 }
