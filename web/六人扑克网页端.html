@@ -103,6 +103,9 @@
   /* 中央出牌区 */
   .center{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:150px;padding:6px}
   #status{font-weight:800;font-size:15px;color:var(--gold);text-align:center;min-height:22px;text-shadow:0 2px 5px rgba(0,0,0,.5)}
+  #passLine{font-size:13px;color:#a8c3d8;min-height:20px;text-align:center;line-height:1.5}
+  #passLine b{color:#fde68a;font-weight:700}
+  .passTag{font-size:10px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
   #cdbar{width:72%;height:8px;background:rgba(255,255,255,.15);border-radius:5px;overflow:hidden;margin-top:2px;display:none}
   #cdfill{height:100%;width:0;background:linear-gradient(90deg,#fde68a,#f59e0b);border-radius:5px;transition:width .9s linear}
   #cdNum{font-size:12px;color:var(--sub)}
@@ -141,8 +144,8 @@
   .box .tip{font-size:12px;color:var(--sub);text-align:center;margin-bottom:8px}
   .ranklist{text-align:center;line-height:2.1;font-size:15px}
   .ranklist b{color:var(--gold)}
-  .btn-line{display:flex;gap:8px;margin-top:14px}
-  .btn-line button{flex:1;padding:13px 0}
+  .btn-line{display:flex;gap:8px;margin-top:14px;position:sticky;bottom:0;padding-top:10px;background:linear-gradient(180deg,transparent,var(--bg2) 35%)}
+  .btn-line button{flex:1;padding:13px 0;font-size:16px}
 
   /* 平板 */
   @media (min-width:661px) and (max-width:1024px){
@@ -197,7 +200,14 @@
       <button class="btn-gy btn-sm" onclick="toggleRec()">记牌器</button>
     </div>
 
-    <div class="table" id="board"></div>
+    <div class="table" id="board">
+      <div class="center" id="center">
+        <div id="passLine"></div>
+        <div id="status">—</div>
+        <div id="cdbar"><div id="cdfill"></div><span id="cdNum"></span></div>
+        <div id="tableZone"></div>
+      </div>
+    </div>
 
     <div class="handpanel">
       <div class="handbar"><span>我的手牌（<span id="handCount">0</span> 张）</span><span id="selCount">已选 0 张</span></div>
@@ -241,6 +251,7 @@ let ws=null, connected=false, mySeat=-1, hostSeat=-1, roomCode="", token=localSt
 let hand=[], selected=new Set(), currentTurn=-1, free=false, tableCards=[], tableSeat=-1;
 let gameState="idle", roundNo=0, hintIdx=0, autoMode=false, cdTimer=null, cdTotal=20, cdLeft=0;
 let trickSeq=0;
+let passSeats=new Set();
 let players=Array.from({length:6},(_,i)=>({seat:i,name:"",isBot:false,online:false,cardCount:0,rank:0,last:[],trickSeq:0}));
 let modalMode="";
 const RANK_TOTAL={3:8,4:8,5:8,6:8,7:8,8:8,9:8,10:8,11:8,12:8,13:8,14:8,15:8,16:2,17:2};
@@ -275,7 +286,8 @@ function setStatus(t){$("status").textContent=t;}
 
 function seatGridCell(s){const off=(s-mySeat+6)%6;if(off===0)return"s-r3c2";if(off===1)return"s-r2c3";if(off===2)return"s-r1c3";if(off===3)return"s-r1c2";if(off===4)return"s-r1c1";return"s-r2c1";}
 function renderSeats(){
-  const board=$("board"); board.innerHTML="";
+  const board=$("board"), center=$("center");
+  [...board.children].forEach(ch=>{if(ch!==center)ch.remove();});
   for(let s=0;s<6;s++){
     const p=players[s];
     const d=document.createElement("div");
@@ -285,6 +297,7 @@ function renderSeats(){
       :(p.name?`<span class="badge">${p.cardCount} 张</span>`:"<span class='badge'>空</span>");
     const arrow=currentTurn===s?"▼":"";
     const isThisTrick=p.trickSeq===trickSeq&&trickSeq>0;
+    const didPass=p.name&&passSeats.has(s);
     // 有名字就始终显示最近出的牌（出完最后一手也显示），不因 rank 隐藏
     let body="";
     if(p.name){
@@ -293,7 +306,8 @@ function renderSeats(){
         body=isThisTrick
           ?`<div class="last"><div class="cards">${cards}</div></div>`
           :`<div class="last"><div class="oldtag">上轮</div><div class="cards" style="opacity:.45">${cards}</div></div>`;
-      }else{body=`<div class="last"><span class="ph">—</span></div>`;}
+      }else if(didPass){body=`<div class="last"><span class="passTag">不要</span></div>`;}
+      else{body=`<div class="last"><span class="ph">—</span></div>`;}
     }
     d.innerHTML=`<div class="arrow">${arrow}</div>
       <div class="avatar">${avatarChar(s)}</div>
@@ -328,6 +342,11 @@ function renderHand(){
   });
   $("handCount").textContent=hand.length;
   $("selCount").textContent="已选 "+selected.size+" 张";
+}
+function renderPassLine(){
+  const el=$("passLine");
+  if(!passSeats.size){el.innerHTML="";return;}
+  el.innerHTML=[...passSeats].map(s=>`<b>${seatName(s)}</b> 不要`).join("　");
 }
 function renderTable(){
   const wrap=$("tableZone"); wrap.innerHTML="";
@@ -439,10 +458,10 @@ function openModal(title,tip,cards,okLabel,mode){
   $("modal").classList.add("show");
 }
 function modalOk(){
-  // 结算模式：房主发下一局后关窗（不走“选牌”校验，否则无法开始下一局）
+  // 结算模式：房主发下一局并关窗；非房主提示等待
   if(modalMode==="round"){
-    if(mySeat===hostSeat)send({type:"next_round"});
-    $("modal").classList.remove("show");
+    if(mySeat===hostSeat){send({type:"next_round"});$("modal").classList.remove("show");}
+    else{setStatus("请等待房主开始下一局");}
     return;
   }
   const pick=$("modalPick"); const id=pick.dataset.sel;
@@ -489,7 +508,7 @@ function handle(m){
     case "turn":{
       currentTurn=m.seat; free=m.free;
       syncUI();
-      if(free){trickSeq++;tableCards=[];tableSeat=-1;try{renderTable();}catch(e){}}
+      if(free){trickSeq++;tableCards=[];tableSeat=-1;passSeats.clear();try{renderTable();}catch(e){}renderPassLine();}
       startCd();
       if(currentTurn===mySeat)setStatus(free?"轮到你了 · 自由出牌":"轮到你了 · 请出牌或不要");
       else setStatus("等待 "+seatName(currentTurn)+" 出牌…");
@@ -499,14 +518,19 @@ function handle(m){
       const s=m.seat;
       tableCards=m.cards; tableSeat=s;
       players[s].last=m.cards.slice(); players[s].trickSeq=trickSeq;
+      passSeats.clear();
       m.cards.forEach(c=>playedCount[c.rank]++);
       if(s===mySeat){const ids=new Set(m.cards.map(c=>c.id));hand=hand.filter(c=>!ids.has(c.id));selected.clear();renderHand();}
       players[s].cardCount=Math.max(0,players[s].cardCount-m.cards.length);
-      renderTable(); renderRecorder(); syncUI();
+      renderTable(); renderPassLine(); renderRecorder(); syncUI();
       appendLog((s===mySeat?"<span class='me'>我</span>":"<b>"+seatName(s)+"</b>")+" 出牌（"+m.cards.length+" 张）","act");
       break;
     }
-    case "passed":{appendLog(seatName(m.seat)+" 不要");break;}
+    case "passed":{
+      passSeats.add(m.seat); renderPassLine(); syncUI();
+      appendLog(seatName(m.seat)+" 不要");
+      break;
+    }
     case "player_finished":{
       players[m.seat].rank=m.rank; players[m.seat].cardCount=0;
       syncUI();
@@ -531,7 +555,9 @@ function handle(m){
     case "resistance":{appendLog(seatName(m.seat)+" 手握两张大王，抗贡！");break;}
     case "round_over":{
       gameState="round_over"; stopCd();
-      for(let s=0;s<6;s++){players[s].rank=m.finishRanks[s];players[s].cardCount=0;}
+      // 容错：finishRanks 缺失时用 ranking 推倒名次
+      const fr=m.finishRanks||{};
+      for(let s=0;s<6;s++){players[s].rank=fr[s]||0;players[s].cardCount=0;}
       syncUI();
       modalMode="round";
       $("modalTitle").textContent="本局结束";
@@ -539,9 +565,11 @@ function handle(m){
       $("modalPick").innerHTML="";
       $("modalRank").style.display="block";
       const rk=$("modalRank"); rk.innerHTML="";
-      m.ranking.forEach((seat,idx)=>{rk.innerHTML+=`第${idx+1}名：<b>${seatName(seat)}</b><br>`;});
+      (m.ranking||[]).forEach((seat,idx)=>{rk.innerHTML+=`第${idx+1}名：<b>${seatName(seat)}</b><br>`;});
       if(m.resistanceNext)rk.innerHTML+="<br><span style='color:var(--gold)'>末游手握两张大王，下局抗贡</span>";
-      $("modalOk").textContent=(mySeat===hostSeat)?"开始下一局":"等待房主开始下一局";
+      const isHost=mySeat===hostSeat;
+      $("modalOk").className="btn-g"; $("modalOk").style.width="100%";
+      $("modalOk").textContent=isHost?"▶ 开始下一局":"等待房主开始下一局…";
       $("modalOk").style.display="block";$("modalCancel").style.display="none";
       $("modal").classList.add("show");
       break;
