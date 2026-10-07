@@ -89,8 +89,9 @@ export function botPlay(game, seat) {
   const hand = game.hands[seat];
   const last = game.table ? game.table.ht : null;
   if (last == null) {
+    // chooseFree 已返回牌 ID 数组（字符串），直接使用，勿再当卡牌对象取 .id
     const r = chooseFree(hand);
-    return { cardIds: r.cardIds.map((c) => c.id) };
+    return { cardIds: r.cardIds };
   }
 
   const beats = findBeats(hand, last);
