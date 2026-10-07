@@ -12,7 +12,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 网页文件：默认 server/web/index.html；可用 WEB_FILE 指定，覆盖后玩家刷新即最新
 const WEB_FILE = process.env.WEB_FILE || path.join(__dirname, '..', 'web', 'index.html');
 const rooms = new Map(); // code -> Room
-const tokenIndex = new Map(); // token -> { code, seat }
+const tokenIndex = new Map(); // token -> { code, seat }（房间座位凭证）
+const loginSessions = new Map(); // 登录会话 token -> 昵称（刷新后恢复登录态）
 const onlineUsers = new Set(); // 在线玩家昵称（登录即加入，断开即移除）
 const PORT = process.env.PORT || 8080;
 
@@ -38,8 +39,20 @@ async function handle(ws, msg) {
       if (!user) return reply(ws, { type: 'login_fail', message: '密码不正确' });
       ws._userName = user.name;
       onlineUsers.add(user.name);
+      const sessionToken = crypto.randomUUID();
+      loginSessions.set(sessionToken, user.name);
       const stats = await db.playerStats(user.name);
-      reply(ws, { type: 'login_ok', name: user.name, stats });
+      reply(ws, { type: 'login_ok', name: user.name, stats, token: sessionToken });
+      break;
+    }
+    case 'resume_session': {
+      // 刷新后恢复登录态（不进入任何房间）
+      const name = loginSessions.get(String(msg.token || ''));
+      if (!name) return reply(ws, { type: 'login_fail', message: '登录会话已失效' });
+      ws._userName = name;
+      onlineUsers.add(name);
+      const stats = await db.playerStats(name);
+      reply(ws, { type: 'login_ok', name, stats, token: msg.token });
       break;
     }
     case 'get_online': {

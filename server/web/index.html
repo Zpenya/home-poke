@@ -268,7 +268,7 @@
 
 <script>
 "use strict";
-let ws=null,connected=false,mySeat=-1,hostSeat=-1,roomCode="",token=localStorage.getItem("poker_token")||"";
+let ws=null,connected=false,mySeat=-1,hostSeat=-1,roomCode="",roomToken=localStorage.getItem("poker_room_token")||"",loginToken=localStorage.getItem("poker_token")||"";
 let hand=[],selected=new Set(),currentTurn=-1,free=false,tableCards=[],tableSeat=-1;
 let gameState="idle",roundNo=0,hintIdx=0,autoMode=false,cdTimer=null,cdTotal=20,cdLeft=0,trickSeq=0;
 let passSeats=new Set();
@@ -276,7 +276,7 @@ let players=Array.from({length:6},(_,i)=>({seat:i,name:"",isBot:false,online:fal
 let modalMode="";
 const RANK_TOTAL={3:8,4:8,5:8,6:8,7:8,8:8,9:8,10:8,11:8,12:8,13:8,14:8,15:8,16:2,17:2};
 const playedCount={};Object.keys(RANK_TOTAL).forEach(r=>playedCount[r]=0);
-let loggedIn=false,userName="",myStats=null,rankList=null,historyList=null;
+let loggedIn=false,userName=localStorage.getItem("poker_name")||"",myStats=null,rankList=null,historyList=null;
 
 const $=id=>document.getElementById(id);
 const RL=r=>r<=10?String(r):({11:"J",12:"Q",13:"K",14:"A",15:"2",16:"小王",17:"大王"}[r]);
@@ -425,7 +425,7 @@ async function doLogin(){
   send({type:"login",name,password:$("passInput").value||""});
   setHint("正在登录…");
 }
-function doLogout(){loggedIn=false;localStorage.removeItem("poker_token");showLogin();setHint("已切换账号，可重新登录");}
+function doLogout(){loggedIn=false;localStorage.removeItem("poker_token");localStorage.removeItem("poker_room_token");showLogin();setHint("已切换账号，可重新登录");}
 function showAfter(){
   $("loginBox").style.display="none";
   $("afterBox").style.display="block";
@@ -548,6 +548,8 @@ function handle(m){
   switch(m.type){
     case "login_ok":{
       loggedIn=true;userName=m.name;myStats=m.stats;
+      localStorage.setItem("poker_name",userName);
+      if(m.token){loginToken=m.token;localStorage.setItem("poker_token",loginToken);}
       showAfter();
       send({type:"get_online"});send({type:"get_ranking"});send({type:"get_history"});
       setHint("");
@@ -558,8 +560,8 @@ function handle(m){
     case "history":{historyList=m.list;break;}
     case "online":{renderOnline(m.list);break;}
     case "room_created":case "room_joined":{
-      mySeat=m.seat;token=m.token;roomCode=m.code;
-      localStorage.setItem("poker_token",token);
+      mySeat=m.seat;roomToken=m.token;roomCode=m.code;
+      localStorage.setItem("poker_room_token",roomToken);
       $("roomCode").textContent=roomCode;$("mySeatTxt").textContent=mySeat+1;
       showView("room");renderRoomSeats();
       break;}
@@ -643,7 +645,12 @@ function handle(m){
       break;}
     case "error":{
       setStatus("提示："+m.message);appendLog("⚠ "+m.message);
-      if(/还没轮到|当前不是|不能Pass|当前不能/.test(m.message)){send({type:"reconnect",token});}
+      if(/重连凭证无效|座位不存在|房间不存在/.test(m.message)&&gameState==="idle"){
+        localStorage.removeItem("poker_room_token");
+        if(userName){loggedIn=true;showAfter();send({type:"get_online"});}
+        return;
+      }
+      if(/还没轮到|当前不是|不能Pass|当前不能/.test(m.message)){send({type:"reconnect",token:roomToken});}
       break;}
     case "state":{restoreState(m);break;}
   }
@@ -670,7 +677,17 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="r"||e.key==="R"){toggleLower();}
 });
 document.addEventListener("DOMContentLoaded",()=>{
-  if(token){connect().then(()=>send({type:"reconnect",token})).catch(()=>{});}
+  const savedName=localStorage.getItem("poker_name");
+  const rt=localStorage.getItem("poker_room_token");
+  const lt=localStorage.getItem("poker_token");
+  if(!savedName&&!rt&&!lt)return; // 从未登录
+  connect().then(()=>{
+    if(rt){send({type:"reconnect",token:rt});} // 回到房间/对局
+    else if(lt){send({type:"resume_session",token:lt});} // 恢复登录态（大厅）
+    else if(savedName){loggedIn=true;userName=savedName;showAfter();send({type:"get_online"});send({type:"get_ranking"});} // 离线兜底
+  }).catch(()=>{
+    if(savedName){loggedIn=true;userName=savedName;showAfter();} // 离线也能看已登录大厅
+  });
 });
 </script>
 </body>
