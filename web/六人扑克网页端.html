@@ -368,16 +368,16 @@ function showView(v){
   $("gameView").style.display=v==="game"?"block":"none";
 }
 
-/* 集中同步：根据当前回合刷新按钮与提示（防状态不同步导致卡死）
-   只要轮到我就一定可出牌，不依赖游戏状态判断，避免按钮误锁灰 */
+/* 集中同步：刷新按钮与提示。核心策略——游戏中按钮始终可点，
+   轮到你时金色高亮，没轮到你时点击给明确提示，彻底杜绝“该我出却按钮灰死” */
 function syncUI(){
+  const playing=gameState==="playing";
   const myTurn=currentTurn===mySeat;
-  $("btnPlay").disabled=!myTurn;
-  $("btnPass").disabled=!(myTurn&&!free);
-  $("btnHint").disabled=!myTurn;
-  // 自由出牌回合：出牌按钮加金色强调
-  $("btnPlay").classList.toggle("hot",myTurn&&free);
-  renderSeats();
+  $("btnPlay").disabled=!playing;
+  $("btnPass").disabled=!playing;
+  $("btnHint").disabled=!playing;
+  $("btnPlay").classList.toggle("hot",myTurn);
+  try{renderSeats();}catch(e){console.error("renderSeats:",e);}
 }
 /* 允许随时预选手牌（不再因回合限制点不了牌），出牌时才真正校验 */
 function toggleSel(id){
@@ -425,7 +425,10 @@ function connect(){
     ws.onopen=()=>{connected=true;resolve();};
     ws.onerror=()=>reject(new Error("无法连接服务器 "+url));
     ws.onclose=()=>{connected=false;setStatus("连接已断开，请刷新");};
-    ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(err){return;}handle(m);};
+    ws.onmessage=e=>{
+      let m;try{m=JSON.parse(e.data);}catch(err){return;}
+      try{handle(m);}catch(err){console.error("handle:",err);}
+    };
   });
 }
 function send(o){if(ws&&connected)ws.send(JSON.stringify(o));}
@@ -444,13 +447,20 @@ async function doJoin(){
 }
 function startGame(){send({type:"start_game"});}
 function doPlay(){
+  if(currentTurn!==mySeat){setStatus("还没轮到你出牌，请等待");return;}
   if(!selected.size){setStatus("请先点击要出的牌");return;}
-  if(currentTurn!==mySeat){setStatus("还没轮到你");return;}
   send({type:"play",cardIds:[...selected]});
   selected.clear();renderHand();
 }
-function doPass(){send({type:"pass"});selected.clear();renderHand();}
-function doHint(){hintIdx=0;send({type:"hint"});}
+function doPass(){
+  if(currentTurn!==mySeat){setStatus("还没轮到你");return;}
+  if(free){setStatus("自由出牌时不能选“不要”");return;}
+  send({type:"pass"});selected.clear();renderHand();
+}
+function doHint(){
+  if(currentTurn!==mySeat){setStatus("还没轮到你");return;}
+  hintIdx=0;send({type:"hint"});
+}
 function toggleRec(){const r=$("recorder");r.style.display=r.style.display==="none"?"grid":"none";}
 
 /* ================= 弹窗 ================= */
@@ -520,8 +530,9 @@ function handle(m){
     }
     case "turn":{
       currentTurn=m.seat; free=m.free;
-      if(free){trickSeq++; tableCards=[]; tableSeat=-1; renderTable();}
-      syncUI(); startCd();
+      syncUI(); // 先更新按钮状态，任何渲染异常都不影响“轮到谁”可用
+      if(free){trickSeq++; tableCards=[]; tableSeat=-1; try{renderTable();}catch(e){console.error("renderTable:",e);}}
+      startCd();
       if(currentTurn===mySeat)setStatus(free?"轮到你了 · 自由出牌":"轮到你了 · 请出牌或不要");
       else setStatus("等待 "+seatName(currentTurn)+" 出牌…");
       break;
