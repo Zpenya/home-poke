@@ -116,11 +116,46 @@ export class Room {
   onTurn(seat) {
     const p = this.players[seat];
     if (!p || !p.isBot) return;
+    // 看门狗：bot 动作 8 秒内未生效则强制推进，避免任何异常导致卡局
+    clearTimeout(this._botWatch);
+    this._botWatch = setTimeout(() => {
+      if (this.game.state === 'playing' && this.game.currentTurn === seat && this.players[seat]?.isBot) {
+        console.warn(`[watchdog] seat${seat}(${this.players[seat].name}) 超时强制推进`);
+        this.botFallback(seat);
+      }
+    }, 8000);
     this.schedule(() => {
-      const action = botPlay(this.game, seat);
-      if (action.pass) this.game.pass(seat);
-      else this.game.play(seat, action.cardIds);
-    });
+      try {
+        const action = botPlay(this.game, seat);
+        if (action.pass) this.game.pass(seat);
+        else this.game.play(seat, action.cardIds);
+      } catch (e) {
+        console.error(`[bot] seat${seat} 动作异常:`, e);
+        this.botFallback(seat);
+      }
+    }, 700);
+  }
+
+  // bot 兜底：出牌失败时改出最小单张/对子，压牌失败时不出，保证轮次永不卡死
+  botFallback(seat) {
+    const g = this.game;
+    try {
+      if (g.state !== 'playing' || g.currentTurn !== seat) return;
+      if (!g.table) {
+        const h = g.hands[seat];
+        if (h && h.length) {
+          const sorted = [...h].sort((a, b) => a.rank - b.rank);
+          const r = sorted[0].rank;
+          const same = h.filter((c) => c.rank === r);
+          const ids = same.length >= 2 ? same.slice(0, 2).map((c) => c.id) : [same[0].id];
+          if (!g.play(seat, ids)) g.play(seat, [sorted[0].id]);
+        }
+        return;
+      }
+      g.pass(seat);
+    } catch (e) {
+      console.error(`[bot] seat${seat} 兜底失败:`, e);
+    }
   }
 
   // bot 响应进贡/回贡要求

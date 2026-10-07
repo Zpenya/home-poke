@@ -138,20 +138,17 @@
   .fan .card{cursor:pointer;transition:transform .13s,box-shadow .13s;position:relative;margin-left:-46px;flex-shrink:0}
   .fan .card:first-child{margin-left:0}
   .fan .card.sel{transform:translateY(-18px);box-shadow:0 10px 18px rgba(251,191,36,.5);z-index:6;outline:3px solid var(--gold)}
-  .actions{display:flex;gap:6px;justify-content:center;margin-bottom:4px}
+  .actions{display:flex;gap:6px;justify-content:center;margin:2px 0 0}
   .actions button{flex:0 0 auto;min-height:28px;font-size:12px;padding:0 14px;border-radius:8px}
   .actions button.hot{filter:brightness(1.14);box-shadow:0 0 0 2px var(--gold),0 2px 0 #047857;transform:scale(1.03)}
 
-  /* ===== 折叠：记牌器+记录 ===== */
-  .lower{display:grid;grid-template-columns:200px 1fr;gap:10px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;display:none}
-  .lower.on{display:grid}
-  .side h4{font-size:13px;margin-bottom:8px;color:var(--sub);cursor:pointer}
+  /* ===== 记录悬浮框（记牌器+出牌记录） ===== */
   .recorder{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
   .rec{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:7px;text-align:center;padding:4px 1px;font-size:11px;color:var(--sub)}
   .rec b{display:block;color:var(--gold);font-size:14px;font-weight:800}
   .rec.zero{opacity:.35}
-  #log{background:rgba(0,0,0,.4);border-radius:10px;padding:9px;font-size:12px;color:#cfe0ec;height:150px;overflow-y:auto;line-height:1.75}
-  #log .me{color:#fff;font-weight:700}#log .sep{color:var(--gold);font-weight:700;margin:4px 0}#log .act{color:#9fe3b4}
+  #log2{background:rgba(0,0,0,.4);border-radius:10px;padding:9px;font-size:12px;color:#cfe0ec;height:220px;overflow-y:auto;line-height:1.75}
+  #log2 .me{color:#fff;font-weight:700}#log2 .sep{color:var(--gold);font-weight:700;margin:4px 0}#log2 .act{color:#9fe3b4}
 
   /* ===== 弹窗 ===== */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:50;padding:14px}
@@ -209,7 +206,7 @@
     .topbar .btn-sm{min-height:24px;padding:0 10px;font-size:11px}
     .handpanel{padding:5px 8px 8px}
     .handbar{font-size:11px;padding:0 4px 4px}
-    .actions{margin-bottom:3px}
+    .actions{margin:2px 0 0}
     .actions button{min-height:24px;font-size:12px;padding:0 12px;border-radius:7px}
     .fan{min-height:80px;padding:10px 4px 4px}
     .fan .card{width:50px;height:70px;border-radius:7px;margin-left:-30px}
@@ -307,30 +304,31 @@
         <div id="status">—</div>
         <div id="cdbar"><div id="cdfill"></div><span id="cdNum"></span></div>
         <div id="tableZone"></div>
+        <div class="actions">
+          <button class="btn-g" id="btnPlay" onclick="doPlay()">出牌</button>
+          <button class="btn-gy" id="btnPass" onclick="doPass()">不要</button>
+          <button class="btn-b" id="btnHint" onclick="doHint()">提示</button>
+        </div>
       </div>
     </div>
 
     <div class="handpanel">
       <div id="myLastRow" class="mylast"></div>
       <div class="handbar"><span>我的手牌（<span id="handCount">0</span> 张）</span><span id="selCount">已选 0 张</span></div>
-      <div class="actions">
-        <button class="btn-g" id="btnPlay" onclick="doPlay()">出牌</button>
-        <button class="btn-gy" id="btnPass" onclick="doPass()">不要</button>
-        <button class="btn-b" id="btnHint" onclick="doHint()">提示</button>
-      </div>
       <div class="fan" id="handArea"></div>
     </div>
+  </div>
+</div>
 
-    <div class="lower" id="lower">
-      <div class="side">
-        <h4 onclick="toggleLower()">记牌器 · 剩余张数</h4>
-        <div class="recorder" id="recorder"></div>
-      </div>
-      <div class="side">
-        <h4>出牌记录</h4>
-        <div id="log"></div>
-      </div>
-    </div>
+<!-- 记录悬浮框（记牌器 + 出牌记录） -->
+<div class="modal" id="lowerModal">
+  <div class="box" style="max-width:620px">
+    <h3>记牌器 · 出牌记录</h3>
+    <div class="tip">记牌器 · 剩余张数</div>
+    <div class="recorder" id="recorder2"></div>
+    <div class="tip" style="margin-top:12px">出牌记录</div>
+    <div id="log2"></div>
+    <div class="btn-line"><button class="btn-gy" onclick="toggleLower()">关闭</button></div>
   </div>
 </div>
 
@@ -353,6 +351,7 @@ let ws=null,connected=false,mySeat=-1,hostSeat=-1,roomCode="",roomToken=localSto
 let hand=[],selected=new Set(),currentTurn=-1,free=false,tableCards=[],tableSeat=-1;
 let gameState="idle",roundNo=0,hintIdx=0,autoMode=false,cdTimer=null,cdTotal=20,cdLeft=0,trickSeq=0;
 let passSeats=new Set();
+let myLastAction=null,myFreeTurn=false;
 let players=Array.from({length:6},(_,i)=>({seat:i,name:"",isBot:false,online:false,cardCount:0,rank:0,last:[],trickSeq:0}));
 let modalMode="";
 const RANK_TOTAL={3:8,4:8,5:8,6:8,7:8,8:8,9:8,10:8,11:8,12:8,13:8,14:8,15:8,16:2,17:2};
@@ -397,7 +396,7 @@ function miniCardHTML(c){
   const sym=jk?"★":SS(c.suit);
   return `<div class="mini-card${RD(c)?" red":""}"><span>${jk?"王":r}</span><span class="ms">${sym}</span></div>`;
 }
-function appendLog(t,cls){const l=$("log"),line=document.createElement("div");line.innerHTML=t;if(cls)line.className=cls;l.appendChild(line);l.scrollTop=l.scrollHeight;}
+function appendLog(t,cls){const l=$("log2"),line=document.createElement("div");line.innerHTML=t;if(cls)line.className=cls;l.appendChild(line);l.scrollTop=l.scrollHeight;}
 function setStatus(t){const s=$("status");if(s)s.textContent=t;}
 function setHint(t){const h=$("loginHint");if(h)h.textContent=t;}
 
@@ -461,7 +460,7 @@ function renderTable(){
   tableCards.forEach(c=>wrap.appendChild(cardEl(c)));
 }
 function renderRecorder(){
-  const r=$("recorder");r.innerHTML="";
+  const r=$("recorder2");r.innerHTML="";
   Object.keys(RANK_TOTAL).forEach(k=>{
     const left=RANK_TOTAL[k]-playedCount[k];
     const d=document.createElement("div");d.className="rec"+(left===0?" zero":"");
@@ -477,7 +476,8 @@ function renderMyLast(){
   const el=$("myLastRow");if(!el)return;
   const p=players[mySeat];
   if(!p||!p.name){el.style.display="none";el.innerHTML="";return;}
-  if(passSeats.has(mySeat)){el.style.display="flex";el.innerHTML=`<span class="myLabel">我出</span><span class="myPass">不出</span>`;return;}
+  if(myFreeTurn){el.style.display="none";el.innerHTML="";return;}
+  if(myLastAction==="pass"||passSeats.has(mySeat)){el.style.display="flex";el.innerHTML=`<span class="myLabel">我出</span><span class="myPass">不出</span>`;return;}
   if(!p.last||!p.last.length){el.style.display="none";el.innerHTML="";return;}
   el.style.display="flex";
   el.innerHTML=`<span class="myLabel">我出</span>${p.last.map(miniCardHTML).join("")}`;
@@ -632,7 +632,7 @@ function doPass(){
   send({type:"pass"});selected.clear();renderHand();
 }
 function doHint(){if(currentTurn!==mySeat){setStatus("还没轮到你");return;}hintIdx=0;send({type:"hint"});}
-function toggleLower(){const l=$("lower");l.classList.toggle("on");}
+function toggleLower(){const m=$("lowerModal");if(!m)return;m.classList.toggle("show");}
 function toggleFull(){
   const d=document.documentElement;
   if(!document.fullscreenElement&&!document.webkitFullscreenElement){
@@ -702,6 +702,7 @@ function handle(m){
       hand=m.hand;selected.clear();hintIdx=0;
       players.forEach(p=>{p.cardCount=18;p.rank=0;p.last=[];p.trickSeq=0;});
       trickSeq=0;Object.keys(playedCount).forEach(k=>playedCount[k]=0);
+      myLastAction=null;myFreeTurn=false;
       $("roundNo").textContent=roundNo;
       showView("game");
       appendLog("<span class='sep'>———— 第 "+roundNo+" 局开始 ————</span>","sep");
@@ -710,7 +711,7 @@ function handle(m){
     case "game_start":{roundNo=m.round;$("roundNo").textContent=roundNo;showView("game");break;}
     case "turn":{
       currentTurn=m.seat;free=m.free;syncUI();
-      if(free){trickSeq++;tableCards=[];tableSeat=-1;passSeats.clear();try{renderTable();}catch(e){}renderPassLine();}
+      if(free){trickSeq++;tableCards=[];tableSeat=-1;passSeats.clear();myFreeTurn=(m.seat===mySeat);try{renderTable();}catch(e){}renderPassLine();}
       startCd();
       if(currentTurn===mySeat)setStatus(free?"轮到你了 · 自由出牌":"轮到你了 · 请出牌或不要");
       else setStatus("等待 "+seatName(currentTurn)+" 出牌…");
@@ -719,13 +720,13 @@ function handle(m){
       const s=m.seat;tableCards=m.cards;tableSeat=s;
       players[s].last=m.cards.slice();players[s].trickSeq=trickSeq;passSeats.clear();
       m.cards.forEach(c=>playedCount[c.rank]++);
-      if(s===mySeat){const ids=new Set(m.cards.map(c=>c.id));hand=hand.filter(c=>!ids.has(c.id));selected.clear();renderHand();}
+      if(s===mySeat){const ids=new Set(m.cards.map(c=>c.id));hand=hand.filter(c=>!ids.has(c.id));selected.clear();renderHand();myLastAction="play";myFreeTurn=false;}
       players[s].cardCount=Math.max(0,players[s].cardCount-m.cards.length);
       renderTable();renderPassLine();renderRecorder();syncUI();
       try{if(isBomb(m.cards))bombSound();else playCardSound();}catch(e){}
       appendLog((s===mySeat?"<span class='me'>我</span>":"<b>"+seatName(s)+"</b>")+" 出牌（"+m.cards.length+" 张）","act");
       break;}
-    case "passed":{passSeats.add(m.seat);renderPassLine();syncUI();try{passSound();}catch(e){}appendLog(seatName(m.seat)+" 不出");break;}
+    case "passed":{passSeats.add(m.seat);if(m.seat===mySeat)myLastAction="pass";renderPassLine();syncUI();try{passSound();}catch(e){}appendLog(seatName(m.seat)+" 不出");break;}
     case "player_finished":{players[m.seat].rank=m.rank;players[m.seat].cardCount=0;syncUI();appendLog(seatName(m.seat)+" 获得第"+m.rank+"名");break;}
     case "hand_update":{hand=m.hand;selected.clear();renderHand();players[mySeat].cardCount=hand.length;syncUI();break;}
     case "tribute_announce":{appendLog("进入进贡环节");break;}
@@ -790,7 +791,15 @@ function restoreState(m){
   const t=m.table;
   if(t){tableCards=t.cards;tableSeat=t.seat;free=false;}else{tableCards=[];tableSeat=-1;}
   if(m.hand){hand=m.hand;selected.clear();}
-  showView("game");renderHand();renderTable();syncUI();
+  showView("game");renderHand();renderTable();renderRecorder();syncUI();
+  if(m.log&&m.log.length){
+    $("log2").innerHTML="";
+    m.log.forEach(x=>{
+      if(x.kind==="play")appendLog((x.seat===mySeat?"<span class='me'>我</span>":"<b>"+seatName(x.seat)+"</b>")+" 出牌（"+x.cards.length+" 张）","act");
+      else if(x.kind==="pass")appendLog(seatName(x.seat)+" 不出");
+      else if(x.kind==="round_over")appendLog("<span class='sep'>———— 第 "+roundNo+" 局结束 ————</span>","sep");
+    });
+  }
   if(m.table)setStatus("轮次继续 · 当前需压 "+seatName(tableSeat)+" 的牌");
 }
 document.addEventListener("keydown",e=>{
