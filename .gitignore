@@ -12,3 +12,7 @@ local.properties
 _shots/
 _backup_old.html
 .DS_Store
+
+# 游戏数据（账号/战绩，勿提交）
+server/data/
+
