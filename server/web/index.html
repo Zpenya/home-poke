@@ -268,16 +268,16 @@
       </div>
     </div>
 
-    <!-- 已登录：用户状态 + 在线玩家 + 房间操作 -->
+    <!-- 已登录：用户状态 + 在线玩家 + 创建房间 + 大厅房间列表 -->
     <div id="afterBox" style="display:none">
-      <div id="myCard" style="font-weight:800;color:var(--gold);margin-bottom:8px"></div>
+      <div id="myCard" style="font-weight:800;color:var(--gold);margin-bottom:12px"></div>
       <div id="onlineBox" style="font-size:13px;color:var(--sub);margin-bottom:12px;text-align:left;line-height:1.7"></div>
-      <div class="row2">
-        <button class="btn-g" onclick="doCreate()">创建房间</button>
-        <button class="btn-b" onclick="doJoin()">加入房间</button>
+      <button class="btn-g" id="createBtn" onclick="doCreate()">创建房间</button>
+      <div style="margin-top:16px;text-align:left">
+        <div style="font-size:13px;color:var(--sub);margin-bottom:8px">在线房间 · 点击加入</div>
+        <div id="roomListBox" style="display:flex;flex-direction:column;gap:8px;max-height:42vh;overflow-y:auto"></div>
       </div>
-      <div class="field" style="margin-top:10px"><input id="codeInput" placeholder="输入 6 位房号加入"></div>
-      <div class="row2">
+      <div class="row2" style="margin-top:16px">
         <button class="btn-gy" onclick="showStatModal('stats')">战绩 & 排名</button>
         <button class="btn-gy" onclick="doLogout()">切换账号</button>
       </div>
@@ -292,6 +292,7 @@
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px" id="roomSeats"></div>
     <button class="btn-g" id="startBtn" style="width:100%;margin-top:14px;display:none" onclick="startGame()">开始游戏</button>
     <div class="hint" id="waitTip" style="text-align:center;color:var(--dim)">等待房主开始游戏…</div>
+    <button class="btn-gy" id="leaveRoomBtn" style="width:100%;margin-top:8px" onclick="doLeaveRoom()">退出房间</button>
   </div>
 
   <!-- ===== 对局 ===== -->
@@ -303,6 +304,7 @@
         <button class="btn-gy btn-sm" onclick="toggleLower()">记录</button>
         <button class="btn-gy btn-sm" onclick="showStatModal('stats')">战绩 & 排名</button>
         <button class="btn-gy btn-sm" id="btnRestart" onclick="doRestart()" style="display:none">重开</button>
+        <button class="btn-gy btn-sm" id="btnLeaveGame" onclick="doLeaveRoom()">退出</button>
       </span>
     </div>
 
@@ -569,19 +571,63 @@ function getServer(){
   if(location&&location.host)return location.host;
   return "127.0.0.1:8080";
 }
+let reconnectAttempt=0,manualClose=false;
 function connect(){return new Promise((resolve,reject)=>{
+  if(ws&&connected){resolve();return;} // 已连接：直接复用，避免反复断连触发自动重连
   if(ws){try{ws.close();}catch(e){}}
   const addr=getServer();let url;
   if(/^wss?:\/\//.test(addr))url=addr;
   else if(location&&location.protocol==="https:")url="wss://"+addr;
   else url="ws://"+addr;
   ws=new WebSocket(url);
-  ws.onopen=()=>{connected=true;resolve();};
+  ws.onopen=()=>{connected=true;reconnectAttempt=0;resolve();};
   ws.onerror=()=>reject(new Error("无法连接服务器 "+url));
-  ws.onclose=()=>{connected=false;setStatus("连接已断开，请刷新");};
+  ws.onclose=()=>{
+    connected=false;setStatus("连接已断开，正在自动重连…");
+    if(!manualClose)scheduleReconnect();
+  };
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(err){return;}try{handle(m);}catch(err){console.error("handle:",err);}};
 });}
+// 自动重连（指数退避）+ 重连后恢复：先恢复房间/对局（reconnect），再登录态（resume_session），最后离线大厅
+function scheduleReconnect(){
+  if(manualClose)return;
+  const delay=Math.min(400*Math.pow(1.7,reconnectAttempt),8000);
+  reconnectAttempt++;
+  setStatus("连接断开，约 "+Math.round(delay/1000)+" 秒后自动重连…");
+  setTimeout(async()=>{
+    try{
+      await connect();
+      const rt=localStorage.getItem("poker_room_token");
+      if(rt){send({type:"reconnect",token:rt});return;}
+      const lt=localStorage.getItem("poker_token");
+      if(lt){send({type:"resume_session",token:lt});return;}
+      const nm=localStorage.getItem("poker_name");
+      if(nm){loggedIn=true;userName=nm;showAfter();send({type:"get_online"});send({type:"get_ranking"});}
+    }catch(e){scheduleReconnect();}
+  },delay);
+}
 function send(o){if(ws&&connected)ws.send(JSON.stringify(o));}
+
+// 大厅房间列表：轮询拉取在线房间，点击进入（不再手动输入房号）
+let roomPollTimer=null;
+function startRoomPoll(){
+  if(roomPollTimer)return;
+  send({type:"list_rooms"});
+  roomPollTimer=setInterval(()=>{
+    if(!loggedIn||$("gameView").style.display!=="none"||$("roomView").style.display!=="none"){stopRoomPoll();return;}
+    send({type:"list_rooms"});
+  },3000);
+}
+function stopRoomPoll(){clearInterval(roomPollTimer);roomPollTimer=null;}
+function renderRoomList(list){
+  const box=$("roomListBox");if(!box)return;
+  if(!list||!list.length){box.innerHTML="<div style='color:var(--dim);font-size:13px'>暂无在线房间，点上方「创建房间」开始一局</div>";return;}
+  box.innerHTML=list.map(r=>`
+    <div onclick="joinRoom('${r.code}')" style="display:flex;justify-content:space-between;align-items:center;padding:11px 13px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;cursor:pointer">
+      <span style="font-weight:800;color:var(--gold);letter-spacing:1px">房间 ${r.code}</span>
+      <span style="font-size:12px;color:var(--sub)">${r.host?(r.host+" · "):""}${r.count}/6 人</span>
+    </div>`).join("");
+}
 
 async function doLogin(){
   const name=$("nameInput").value.trim();
@@ -590,7 +636,15 @@ async function doLogin(){
   send({type:"login",name,password:$("passInput").value||""});
   setHint("正在登录…");
 }
-function doLogout(){loggedIn=false;localStorage.removeItem("poker_token");localStorage.removeItem("poker_room_token");showLogin();setHint("已切换账号，可重新登录");}
+function doLogout(){
+  manualClose=true; // 注销：关闭连接且不再自动重连
+  stopRoomPoll();
+  try{if(ws)ws.close();}catch(e){}
+  ws=null;connected=false;
+  loggedIn=false;
+  localStorage.removeItem("poker_token");localStorage.removeItem("poker_room_token");localStorage.removeItem("poker_name");
+  showLogin();setHint("已注销，可重新登录");
+}
 function showAfter(){
   $("loginBox").style.display="none";
   $("afterBox").style.display="block";
@@ -604,13 +658,33 @@ function renderOnline(list){
   box.innerHTML="在线玩家："+list.map(n=>n===userName?`<b style="color:var(--gold)">${n}（我）</b>`:n).join("、");
 }
 
-async function doCreate(){if(!loggedIn){setHint("请先登录账号");return;}try{await connect();}catch(err){setHint(err.message);return;}send({type:"create_room",name:userName});}
-async function doJoin(){
+// 防抖：创建/加入请求在途时禁用按钮，避免连续点击重复进房
+let createBusy=false,joinBusy=false;
+function resetRoomBusy(){createBusy=false;joinBusy=false;const b=$("createBtn");if(b)b.disabled=false;}
+async function doCreate(){
   if(!loggedIn){setHint("请先登录账号");return;}
-  const code=$("codeInput").value.trim();
-  if(code.length!==6){alert("请输入 6 位房号");return;}
-  try{await connect();}catch(err){setHint(err.message);return;}
+  if(createBusy||joinBusy){setHint("正在处理，请稍候…");return;}
+  createBusy=true;const b=$("createBtn");if(b)b.disabled=true;
+  try{await connect();}catch(err){setHint(err.message);resetRoomBusy();return;}
+  send({type:"create_room",name:userName});
+  setTimeout(resetRoomBusy,8000); // 兜底复位
+}
+async function joinRoom(code){
+  if(!loggedIn){setHint("请先登录账号");return;}
+  if(createBusy||joinBusy){setHint("正在处理，请稍候…");return;}
+  joinBusy=true;
+  try{await connect();}catch(err){setHint(err.message);joinBusy=false;return;}
   send({type:"join_room",roomCode:code,name:userName});
+  setTimeout(resetRoomBusy,8000);
+}
+function doLeaveRoom(){
+  if(!confirm("确定退出当前房间吗？"))return;
+  manualClose=false; // 保持连接，回大厅
+  stopRoomPoll();
+  send({type:"leave_room"});
+  localStorage.removeItem("poker_room_token");roomToken="";
+  resetRoomBusy();
+  if(loggedIn){showView("conn");showAfter();startRoomPoll();}
 }
 async function doStats(){
   try{await connect();}catch(err){setHint(err.message);return;}
@@ -736,6 +810,7 @@ function handle(m){
       if(m.token){loginToken=m.token;localStorage.setItem("poker_token",loginToken);}
       showAfter();
       send({type:"get_online"});send({type:"get_ranking"});send({type:"get_history"});
+      startRoomPoll();
       setHint("");
       break;}
     case "login_fail":{setHint("登录失败："+(m.message||"密码不正确"));break;}
@@ -743,10 +818,12 @@ function handle(m){
     case "ranking":{rankList=m.list;break;}
     case "history":{historyList=m.list;break;}
     case "online":{renderOnline(m.list);break;}
+    case "rooms":{renderRoomList(m.list);break;}
     case "room_created":case "room_joined":{
       mySeat=m.seat;roomToken=m.token;roomCode=m.code;
       localStorage.setItem("poker_room_token",roomToken);
       $("roomCode").textContent=roomCode;$("mySeatTxt").textContent=mySeat+1;
+      stopRoomPoll();resetRoomBusy();
       showView("room");renderRoomSeats();
       break;}
     case "room_state":{
@@ -832,10 +909,12 @@ function handle(m){
       g.forEach(id=>selected.add(id));renderHand();
       break;}
     case "error":{
-      setStatus("提示："+m.message);appendLog("⚠ "+m.message);
-      if(/重连凭证无效|座位不存在|房间不存在/.test(m.message)&&gameState==="idle"){
-        localStorage.removeItem("poker_room_token");
-        if(userName){loggedIn=true;showAfter();send({type:"get_online"});}
+      setStatus("提示："+m.message);appendLog("⚠ "+m.message);resetRoomBusy();
+      if(/重连凭证无效|座位不存在|房间不存在/.test(m.message)){
+        // 房间/座位已失效：无论当前是否在对局，优雅回到大厅
+        localStorage.removeItem("poker_room_token");roomToken="";
+        resetRoomBusy();stopRoomPoll();
+        if(userName){loggedIn=true;showAfter();showView("conn");startRoomPoll();send({type:"get_online"});send({type:"get_ranking"});}
         return;
       }
       if(/还没轮到|当前不是|不能Pass|当前不能/.test(m.message)){send({type:"reconnect",token:roomToken});}
@@ -853,6 +932,7 @@ function restoreState(m){
   const t=m.table;
   if(t){tableCards=t.cards;tableSeat=t.seat;free=false;}else{tableCards=[];tableSeat=-1;}
   if(m.hand){hand=m.hand;selected.clear();}
+  if(m.state==="idle"||m.state==="room"){showView("room");renderRoomSeats();return;} // 未开局：重连回到房间等待视图
   showView("game");renderHand();renderTable();renderRecorder();syncUI();
   if(m.log&&m.log.length){
     $("log2").innerHTML="";
@@ -883,7 +963,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   connect().then(()=>{
     if(rt){send({type:"reconnect",token:rt});} // 回到房间/对局
     else if(lt){send({type:"resume_session",token:lt});} // 恢复登录态（大厅）
-    else if(savedName){loggedIn=true;userName=savedName;showAfter();send({type:"get_online"});send({type:"get_ranking"});} // 离线兜底
+    else if(savedName){loggedIn=true;userName=savedName;showAfter();startRoomPoll();send({type:"get_online"});send({type:"get_ranking"});} // 离线兜底
   }).catch(()=>{
     if(savedName){loggedIn=true;userName=savedName;showAfter();} // 离线也能看已登录大厅
   });

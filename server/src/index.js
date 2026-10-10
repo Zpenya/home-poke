@@ -25,6 +25,15 @@ function genRoomCode() {
   return code;
 }
 
+// 查找某账号已占用的座位（一个账号只能同时存在于一个房间一个座位，防重复进房）
+function findPlayerRoom(name) {
+  for (const [, room] of rooms) {
+    const seat = room.players.findIndex((p) => p && !p.isBot && p.name === name);
+    if (seat >= 0) return { room, seat };
+  }
+  return null;
+}
+
 function reply(ws, obj) {
   try { ws.send(JSON.stringify(obj)); } catch { /* ignore */ }
 }
@@ -76,24 +85,41 @@ async function handle(ws, msg) {
       break;
     }
     case 'create_room': {
+      const name = ws._userName || String(msg.name || '房主');
+      const dup = findPlayerRoom(name);
+      if (dup) return replyError(ws, '你已在房间中，请先退出');
       const code = genRoomCode();
       const room = new Room(code, db);
       rooms.set(code, room);
       const token = crypto.randomUUID();
-      const seat = room.addPlayer(ws._userName || String(msg.name || '房主'), ws, token);
+      const seat = room.addPlayer(name, ws, token);
       tokenIndex.set(token, { code, seat });
       reply(ws, { type: 'room_created', code, seat, token });
       break;
     }
     case 'join_room': {
+      const name = ws._userName || String(msg.name || '玩家');
+      const dup = findPlayerRoom(name);
+      if (dup) return replyError(ws, '你已在房间中，请先退出');
       const code = String(msg.roomCode || '');
       const room = rooms.get(code);
       if (!room) return replyError(ws, '房间不存在');
       if (room.occupied() >= 6) return replyError(ws, '房间已满');
       const token = crypto.randomUUID();
-      const seat = room.addPlayer(ws._userName || String(msg.name || '玩家'), ws, token);
+      const seat = room.addPlayer(name, ws, token);
       tokenIndex.set(token, { code, seat });
       reply(ws, { type: 'room_joined', code, seat, token });
+      break;
+    }
+    case 'list_rooms': {
+      // 大厅房间列表：只列出尚未开局、且还有空位的房间，供点击加入
+      const list = [...rooms.entries()].map(([code, room]) => ({
+        code,
+        count: room.occupied(),
+        host: (room.players[room.hostSeat] || {}).name || '',
+        state: room.game.state,
+      })).filter((r) => r.count > 0 && r.count < 6 && r.state === 'idle');
+      reply(ws, { type: 'rooms', list });
       break;
     }
     case 'reconnect': {
@@ -120,7 +146,8 @@ async function handle(ws, msg) {
     case 'tribute': ws._room?.game.submitTribute(ws._seat, msg.cardId); break;
     case 'return_tribute': ws._room?.game.submitReturn(ws._seat, msg.cardId); break;
     case 'leave_room':
-      if (ws._room) ws._room.disconnect(ws._seat);
+      // 主动退出：清空座位（区别于网络断开时保留座位的 disconnect），回大厅
+      if (ws._room && ws._seat >= 0) ws._room.removePlayer(ws._seat);
       ws._room = null;
       ws._seat = -1;
       break;
@@ -165,6 +192,8 @@ wss.on('connection', (ws) => {
   ws._room = null;
   ws._seat = -1;
   ws._userName = null;
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   ws.on('message', async (data) => {
     let msg;
     try { msg = JSON.parse(data.toString()); } catch { return replyError(ws, '消息格式错误'); }
@@ -172,9 +201,21 @@ wss.on('connection', (ws) => {
   });
   ws.on('close', () => {
     if (ws._userName) onlineUsers.delete(ws._userName);
-    if (ws._room && ws._seat >= 0) ws._room.disconnect(ws._seat);
+    if (ws._room && ws._seat >= 0) ws._room.disconnect(ws._seat); // 网络断开：保留座位，等待重连恢复
   });
 });
+
+// 心跳保活：定期 ping，超时未 pong 判定连接已死（半开 TCP），主动 terminate 并清理，避免僵尸连接
+const HEARTBEAT_MS = 30000;
+const hbTimer = setInterval(() => {
+  wss.clients.forEach((c) => {
+    if (c.isAlive === false) { c.terminate(); return; }
+    c.isAlive = false;
+    try { c.ping(); } catch { c.terminate(); }
+  });
+}, HEARTBEAT_MS);
+wss.on('close', () => clearInterval(hbTimer));
+process.on('SIGINT', () => { clearInterval(hbTimer); process.exit(0); });
 
 server.listen(PORT, () => {
   console.log(`六人扑克服务器已启动，监听端口 ${PORT}`);

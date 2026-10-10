@@ -69,6 +69,19 @@ export class Room {
     this.broadcastRoomState();
   }
 
+  // 主动退出：清空座位并移交房主（网络断开用 disconnect 保留座位以便重连恢复）
+  removePlayer(seat) {
+    const p = this.players[seat];
+    if (!p || p.isBot) return;
+    this.players[seat] = null;
+    if (this.hostSeat === seat) {
+      let ns = this.players.findIndex((q, i) => q && !q.isBot && q.online && i !== seat);
+      if (ns === -1) ns = this.players.findIndex((q, i) => q && !q.isBot && i !== seat);
+      this.hostSeat = ns === -1 ? -1 : ns;
+    }
+    this.broadcastRoomState();
+  }
+
   sendTo(seat, msg) {
     const p = this.players[seat];
     if (!p) return;
