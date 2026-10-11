@@ -13,7 +13,17 @@ export function botReturnChoice(game, seat, forbiddenId) {
   return sorted.find((c) => c.id !== forbiddenId).id;
 }
 
-// 冲刺：一次性出能清掉最多牌的组合（飞机/连对/顺子/三带/对子/单张）
+function rankMap(hand) {
+  const byRank = new Map();
+  for (const c of hand) {
+    if (!byRank.has(c.rank)) byRank.set(c.rank, []);
+    byRank.get(c.rank).push(c);
+  }
+  return byRank;
+}
+
+// 冲刺：一次性出能清掉最多牌的组合（飞机/连对/顺子/三带/对子/单张）。
+// 关键原则：绝不拆对子/三张去拼顺子，翅膀也优先用孤立单张，避免机器人"拆对打单"。
 function chooseBig(hand, byRank, ranks, take) {
   function longest(candidates) {
     let best = [];
@@ -26,7 +36,7 @@ function chooseBig(hand, byRank, ranks, take) {
     }
     return best;
   }
-  // 1. 飞机（优先带翅膀）
+  // 1. 飞机（优先带翅膀，翅膀用低组合/孤立单，不拆更大组合）
   const triRanks = ranks.filter((r) => r <= 14 && byRank.get(r).length >= 3);
   const plane = longest(triRanks);
   if (plane.length >= 2) {
@@ -35,52 +45,49 @@ function chooseBig(hand, byRank, ranks, take) {
     const ex = new Set(plane);
     const pairs = ranks.filter((r) => !ex.has(r) && byRank.get(r).length >= 2);
     if (pairs.length >= k) return { cardIds: [...body, ...pairs.slice(0, k).flatMap((r) => take(r, 2))] };
-    const singles = ranks.filter((r) => !ex.has(r)).flatMap((r) => take(r, 1));
+    const singles = ranks.filter((r) => !ex.has(r) && byRank.get(r).length === 1);
     if (singles.length >= k) return { cardIds: [...body, ...singles.slice(0, k)] };
     return { cardIds: body };
   }
-  // 2. 连对
+  // 2. 连对（不拆三张/飞机）
   const pairRanks = ranks.filter((r) => r <= 14 && byRank.get(r).length >= 2);
   const pairsStraight = longest(pairRanks);
   if (pairsStraight.length >= 3) return { cardIds: pairsStraight.flatMap((r) => take(r, 2)) };
-  // 3. 顺子
-  const straight = longest(ranks.filter((r) => r <= 14));
+  // 3. 顺子：只用孤立单张拼（避免拆对子/三张）
+  const singleRanks = ranks.filter((r) => r <= 14 && byRank.get(r).length === 1);
+  const straight = longest(singleRanks);
   if (straight.length >= 5) return { cardIds: straight.map((r) => take(r, 1)[0]) };
   // 4. 三带二 / 三带一 / 三张
   const tr = ranks.find((r) => byRank.get(r).length >= 3);
   if (tr != null) {
     const pr = ranks.find((r) => r !== tr && byRank.get(r).length >= 2);
     if (pr != null) return { cardIds: [...take(tr, 3), ...take(pr, 2)] };
-    const sr = ranks.find((r) => r !== tr);
+    const sr = ranks.find((r) => r !== tr && byRank.get(r).length === 1); // 三带一带孤立单，不拆对
     if (sr != null) return { cardIds: [...take(tr, 3), ...take(sr, 1)] };
     return { cardIds: take(tr, 3) };
   }
-  // 5. 对子 / 单张
+  // 5. 对子优先，无对子才出最小单
   const pr = ranks.find((r) => byRank.get(r).length >= 2);
   if (pr != null) return { cardIds: take(pr, 2) };
   return { cardIds: [take(ranks[0], 1)[0]] };
 }
 
-// 自由出牌：手牌多时先出小散牌（孤立单张、最小对子），保留顺子/连对/飞机/炸弹；
-// 手牌少时冲刺一次清最多
+// 自由出牌：手牌很多时先出最小孤立单张（散牌）；手牌不多时冲刺一次清最多组合。
+// 无论何时，剩对子就出对子，绝不把对子拆成单张打。
 function chooseFree(hand) {
-  const byRank = new Map();
-  for (const c of hand) {
-    if (!byRank.has(c.rank)) byRank.set(c.rank, []);
-    byRank.get(c.rank).push(c);
-  }
+  const byRank = rankMap(hand);
   const ranks = [...byRank.keys()].sort((a, b) => a - b);
   const take = (r, n) => byRank.get(r).slice(0, n);
 
-  if (hand.length > 6) {
-    // 常规：先出最小的孤立单张（散牌，最难带走，先消耗掉）
+  if (hand.length > 8) {
+    // 常规：先出最小的孤立单张（散牌最难带走，先消耗）
     const lonely = ranks.filter((r) => byRank.get(r).length === 1);
     if (lonely.length) return { cardIds: [byRank.get(lonely[0])[0].id] };
     // 没有散单张：出最小对子（保留大牌和组合）
     const pair = ranks.find((r) => byRank.get(r).length === 2);
     if (pair != null) return { cardIds: take(pair, 2).map((c) => c.id) };
   }
-  // 冲刺或没有散牌可出：出能清掉最多牌的组合
+  // 冲刺（含只剩一对/少量牌）：出能清掉最多牌的组合
   const big = chooseBig(hand, byRank, ranks, take);
   return { cardIds: big.cardIds.map((c) => c.id) };
 }

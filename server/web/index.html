@@ -98,7 +98,7 @@
   .gseat .cnt{font-size:11px;color:#fff;background:rgba(255,255,255,.14);padding:1px 7px;border-radius:10px}
   .gseat .rk{font-size:11px;color:var(--gold);font-weight:800;background:rgba(251,191,36,.15);padding:1px 7px;border-radius:10px}
   .gseat .last{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:52px;justify-content:center}
-  .gseat .last .cards{display:flex;gap:2px;justify-content:center}
+  .gseat .last .cards{display:flex;gap:1px;justify-content:center}
   .gseat .last .ph,.gseat .last .passTag{font-size:11px;color:var(--dim)}
   .passTag{font-size:11px;color:#e5edf5;background:rgba(59,130,246,.35);border:1px solid var(--line);border-radius:5px;padding:2px 9px}
   .oldtag{font-size:9px;color:#9fb3c5;background:rgba(0,0,0,.4);border-radius:3px;padding:0 4px;line-height:1.4}
@@ -230,7 +230,11 @@
     .gseat .avatar{width:22px;height:22px;font-size:11px}
     .gseat .name{font-size:10px;max-width:52px}
     .gseat .cnt{font-size:10px;padding:0 5px}
-    .gseat .last{min-height:36px;gap:1px}
+    .gseat .last{min-height:38px;gap:1px}
+    .gseat .last .cards{gap:1px}
+    .gseat .last .cards .mini-card{height:38px;min-width:26px;padding:0 3px;gap:0;border-width:.8px}
+    .gseat .last .cards .mini-card span{font-size:14px}
+    .gseat .last .cards .mini-card .ms{font-size:11px}
     .mini-card{height:34px;min-width:23px;padding:0 4px;gap:0}
     .mini-card span{font-size:13px}
     .mini-card .ms{font-size:10px}
@@ -526,10 +530,14 @@ function initDragSelect(){
     const el=document.elementFromPoint(x,y);
     return el&&el.closest?el.closest(".card"):null;
   }
+  let oldOverflow=null;
   area.addEventListener("pointerdown",e=>{
     if(gameState!=="playing")return;
     const card=e.target.closest(".card");
     if(!card)return;
+    try{area.setPointerCapture(e.pointerId);}catch(err){}
+    oldOverflow=area.style.overflow;
+    area.style.overflow="hidden"; // 拖动期间禁用横向滚动，保证滑动不被打断、区间稳定
     e.preventDefault();
     dragDown={x:e.clientX,y:e.clientY,start:card};
     dragActive=false;
@@ -553,9 +561,13 @@ function initDragSelect(){
   });
   window.addEventListener("pointerup",()=>{
     if(dragActive)skipClick=true;
+    if(area&&oldOverflow!==null){area.style.overflow=oldOverflow;oldOverflow=null;}
     dragDown=null;dragActive=false;
   });
-  window.addEventListener("pointercancel",()=>{dragDown=null;dragActive=false;});
+  window.addEventListener("pointercancel",()=>{
+    if(area&&oldOverflow!==null){area.style.overflow=oldOverflow;oldOverflow=null;}
+    dragDown=null;dragActive=false;
+  });
 }
 initDragSelect();
 
