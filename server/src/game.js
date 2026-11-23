@@ -300,6 +300,62 @@ export class Game {
     return false;
   }
 
+  // ===== 持久化：序列化 / 恢复 / 重启续局 =====
+  toData() {
+    return {
+      round: this.round,
+      state: this.state,
+      hands: this.hands,
+      finishRanks: this.finishRanks,
+      alive: [...this.alive],
+      table: this.table,
+      currentTurn: this.currentTurn,
+      lastAttacker: this.lastAttacker,
+      passCount: this.passCount,
+      ranking: this.ranking,
+      tribute: this.tribute,
+      lastRoundInfo: this.lastRoundInfo,
+      log: this.log,
+    };
+  }
+
+  restore(d) {
+    if (!d) return;
+    this.round = d.round ?? 0;
+    this.state = d.state || 'idle';
+    this.hands = Array.isArray(d.hands) && d.hands.length === SEATS
+      ? d.hands
+      : Array.from({ length: SEATS }, () => []);
+    this.finishRanks = d.finishRanks || Array(SEATS).fill(0);
+    this.alive = new Set(d.alive || []);
+    this.table = d.table || null;
+    this.currentTurn = d.currentTurn ?? -1;
+    this.lastAttacker = d.lastAttacker ?? -1;
+    this.passCount = d.passCount || 0;
+    this.ranking = d.ranking || [];
+    this.tribute = d.tribute || null;
+    this.lastRoundInfo = d.lastRoundInfo || null;
+    this.log = d.log || [];
+  }
+
+  // 服务重启恢复后继续推进：轮到机器人接着打，人类等客户端重连
+  resume() {
+    if (this.state === 'playing') {
+      this.promptTurn();
+    } else if (this.state === 'tribute' && this.tribute) {
+      const { from, to, card, stage } = this.tribute;
+      if (stage === 'pay') {
+        this.room.sendTo(from, {
+          type: 'tribute_required', toSeat: to, maxRank: maxRank(this.hands[from]),
+        });
+      } else if (stage === 'return') {
+        this.room.sendTo(to, {
+          type: 'return_tribute_required', fromSeat: from, forbiddenId: card ? card.id : '',
+        });
+      }
+    }
+  }
+
   // 重连/入场完整快照
   snapshot(seat) {
     const players = this.room.players.map((p, s) => ({

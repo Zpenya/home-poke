@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Room } from './room.js';
 import { db } from './db.js';
+import { loadRooms, loadSessions, saveSessions, flushAllRooms } from './persist.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 网页文件：默认 server/web/index.html；可用 WEB_FILE 指定，覆盖后玩家刷新即最新
@@ -50,6 +51,7 @@ async function handle(ws, msg) {
       onlineUsers.add(user.name);
       const sessionToken = crypto.randomUUID();
       loginSessions.set(sessionToken, user.name);
+      saveSessions(loginSessions); // 持久化登录会话，服务重启后仍可恢复
       const stats = await db.playerStats(user.name);
       reply(ws, { type: 'login_ok', name: user.name, stats, token: sessionToken });
       break;
@@ -215,11 +217,45 @@ const hbTimer = setInterval(() => {
   });
 }, HEARTBEAT_MS);
 wss.on('close', () => clearInterval(hbTimer));
-process.on('SIGINT', () => { clearInterval(hbTimer); process.exit(0); });
+function shutdown() {
+  clearInterval(hbTimer);
+  flushAllRooms(rooms).finally(() => process.exit(0));
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
+// ===== 启动恢复：加载持久化的房间与登录会话，恢复进行中的对局 =====
+const savedRooms = await loadRooms();
+for (const d of savedRooms) {
+  try {
+    const room = Room.fromData(d, db);
+    rooms.set(String(d.code), room);
+    for (let s = 0; s < 6; s++) {
+      const p = room.players[s];
+      if (p && p.token) tokenIndex.set(p.token, { code: String(d.code), seat: s });
+    }
+  } catch (e) {
+    console.warn('[restore] 房间恢复失败', d.code, e.message);
+  }
+}
+const savedSessions = await loadSessions();
+for (const [t, n] of Object.entries(savedSessions)) {
+  if (t && n) loginSessions.set(t, n);
+}
+console.log(`[restore] 已恢复 ${rooms.size} 个房间、${loginSessions.size} 个登录会话`);
 
 server.listen(PORT, () => {
   console.log(`六人扑克服务器已启动，监听端口 ${PORT}`);
   console.log(`  网页入口：http://localhost:${PORT}/  （WebSocket 同源 wss/ws）`);
   console.log(`  数据目录：${process.env.DATA_DIR || '<server>/data'}`);
   console.log(`  网页文件：${WEB_FILE}（覆盖后刷新即最新）`);
+  // 恢复后继续推进进行中的对局：机器人在线接着打，人类客户端重连后可续
+  for (const [, room] of rooms) {
+    try {
+      if (room.game.state === 'playing' || room.game.state === 'tribute') room.game.resume();
+      room.broadcastRoomState();
+    } catch (e) {
+      console.warn('[restore] 续局失败', room.code, e.message);
+    }
+  }
 });

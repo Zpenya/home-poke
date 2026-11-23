@@ -1,6 +1,7 @@
 // 房间：座位、玩家连接、机器人调度、消息收发
 import { Game } from './game.js';
 import { botTributeChoice, botReturnChoice, botPlay } from './bot.js';
+import { saveRoom, deleteRoomFile } from './persist.js';
 
 let botSeq = 0;
 
@@ -79,6 +80,13 @@ export class Room {
       if (ns === -1) ns = this.players.findIndex((q, i) => q && !q.isBot && i !== seat);
       this.hostSeat = ns === -1 ? -1 : ns;
     }
+    // 房间已无人：直接删除持久化快照，避免空房堆积
+    if (this.occupied() === 0) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+      deleteRoomFile(this.code);
+      return;
+    }
     this.broadcastRoomState();
   }
 
@@ -96,6 +104,7 @@ export class Room {
     for (let s = 0; s < 6; s++) {
       if (s !== exceptSeat) this.sendTo(s, msg);
     }
+    this.save(); // 任何状态广播都意味着牌局状态变化，合并落盘
   }
 
   playerPublic(s) {
@@ -108,6 +117,47 @@ export class Room {
       cardCount: this.game.state === 'idle' ? 0 : this.game.hands[s].length,
       rank: this.game.finishRanks[s],
     };
+  }
+
+  // ===== 持久化：序列化 / 恢复 / debounce 落盘 =====
+  toData() {
+    return {
+      code: this.code,
+      hostSeat: this.hostSeat,
+      players: this.players.map((p) => (p ? {
+        name: p.name, token: p.token, isBot: p.isBot, online: p.isBot ? true : false,
+      } : null)),
+      game: this.game.toData(),
+    };
+  }
+
+  static fromData(d, db) {
+    const room = new Room(d.code, db);
+    room.hostSeat = d.hostSeat ?? -1;
+    (d.players || []).forEach((p, i) => {
+      if (!p) return;
+      room.players[i] = {
+        name: p.name, token: p.token, isBot: !!p.isBot, online: !!p.isBot, ws: null,
+      };
+    });
+    room.game.restore(d.game);
+    return room;
+  }
+
+  // 状态变更后 400ms 内合并落盘，避免高频写入
+  save() {
+    if (this._saveTimer) return;
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      saveRoom(this);
+    }, 400);
+  }
+
+  // 立即落盘（退出房间/进程退出时用）
+  saveNow() {
+    clearTimeout(this._saveTimer);
+    this._saveTimer = null;
+    saveRoom(this);
   }
 
   broadcastRoomState() {
